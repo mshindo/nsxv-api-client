@@ -1,11 +1,10 @@
-This is an NSX-v API library so that people can consume NSX-v API using Pythong easily. The 
-intention is to free someone who writes a code from the neccesity of manipulating XML 
-expliclty.
+This is an NSX-v API library so that people can consume NSX-v API using Python easily. The intention
+is to free someone who writes a code from directly manipulating the XML.
 
-Currently the number of supported API calls is pretty limited but I am going to add more as
-needed basis. It is relatively straingtforward to add API call, your contrbibution is very 
-much welcome. 
+Currently the number of supported API calls is pretty limited but I am going to add more as needed
+basis. It is relatively straingtforward to add API call support, your contrbibution is very much
+welcome.
 
-                                                                        Motonori Shindo
-																	    mshindo@vmware.com
-																	    @motonori_shindo
+Motonori Shindo
+mshindo@vmware.com 
+@motonori_shindo
