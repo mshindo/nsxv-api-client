@@ -16,6 +16,21 @@ from lxml import etree
 #        root = etree.Element("securitygroup")
 #        etree.SubElement(root, "name").text = self.name
 #        return etree.tostring(root, pretty_print=pretty_print)
+
+class VCenterInfo(object):
+    """docstring for vCenterInfo"""
+    def __init__(self, host, username, password):
+        self.host = host            # it can be either an IP address or FQDN
+        self.username = username
+        self.password = password
+    
+    def toxml(self):
+        root = etree.Element("vcInfo")
+        etree.SubElement(root, "ipAddress").text = self.host
+        etree.SubElement(root, "userName").text = self.username
+        etree.SubElement(root, "password").text = self.password
+        return etree.tostring(root)
+        
         
 class FirewallSection(object):
     def __init__(self, name, rules=None):
@@ -75,6 +90,12 @@ class Nsx:
         
     # NSX API calls
     
+    # Configure vCenter Server with NSX Manager
+    
+    def configurevCenter(self, vc):
+        """docstring for configurevCenter"""
+        return self.__api_put('/api/2.0/services/vcconfig', vc.toxml())
+
     # Security Groups
     
     def getSecurityGroups(self):
