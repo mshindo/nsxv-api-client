@@ -78,3 +78,9 @@ nsx.create_transport_zone(name='Global-Transport-Zone',
                                     'Compute Cluster A',
                                     'Compute Cluster B'])
 
+for name in ['Transit-Network-01', 
+             'Web-Tier-01',
+             'App-Tier-01',
+             'DB-Tier-01']:
+    nsx.create_logical_switch(name=name,
+                              transport_zone='Global-Transport-Zone')

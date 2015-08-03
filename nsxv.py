@@ -219,6 +219,23 @@ class TransportZone(object):
         etree.SubElement(root, 'controlPlaneMode').text = self.mode
         return etree.tostring(root)
 
+
+class LogicalSwitch(object):
+    """docstring for LogicalSwitch"""
+    def __init__(self, name, mode):
+        super(LogicalSwitch, self).__init__()
+        self.name = name
+        self.mode = mode
+        
+    def toxml(self):
+        """docstring for toxml"""
+        root = etree.Element('virtualWireCreateSpec')
+        etree.SubElement(root, 'name').text = self.name
+        # looks like tenantId can be anything
+        etree.SubElement(root, 'tenantId').text = 'virtual wire tenant'
+        etree.SubElement(root, 'controlPlaneMode').text = self.mode
+        return etree.tostring(root)
+        
                 
 class FirewallSection(object):
     def __init__(self, name, rules=None):
@@ -378,7 +395,14 @@ class Nsx:
          resp = self._api_get('/api/2.0/services/ipam/pools/scope/globalroot-0')
          pools = etree.fromstring(resp)
          pattern = "/ipamAddressPools/ipamAddressPool[name='%s']/objectId/text()" % name
-         return pools.xpath(pattern)[0]                               
+         return pools.xpath(pattern)[0]
+    
+    def _find_transport_zone_id(self, name):
+        """docstring for _find_transport_zone_id"""
+        resp = self._api_get('/api/2.0/vdn/scopes')
+        scopes = etree.fromstring(resp)
+        pattern = "/vdnScopes/vdnScope[name='%s']/id/text()" % name
+        return scopes.xpath(pattern)[0]
 
     # IP Pools
 
@@ -449,11 +473,17 @@ class Nsx:
     
     def create_transport_zone(self, name, datacenter, clusters):
         """docstring for create_transport_zone"""
-
         clusters_id = [self._find_cluster_id(datacenter, 
                                              cluster) for cluster in clusters]
         transport_zone = TransportZone(name, clusters_id)
         return self._api_post('/api/2.0/vdn/scopes', transport_zone.toxml())
+        
+    def create_logical_switch(self, name, transport_zone, mode='UNICAST_MODE'):
+        """docstring for create_logical_switch"""
+        transport_zone_id = self._find_transport_zone_id(transport_zone)
+        logical_switch = LogicalSwitch(name, mode)
+        path = '/api/2.0/vdn/scopes/%s/virtualwires' % transport_zone_id
+        return self._api_post(path, logical_switch.toxml())
         
     # Security Groups
     
