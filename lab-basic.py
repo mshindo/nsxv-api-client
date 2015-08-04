@@ -84,3 +84,8 @@ for name in ['Transit-Network-01',
              'DB-Tier-01']:
     nsx.create_logical_switch(name=name,
                               transport_zone='Global-Transport-Zone')
+
+for vm in ['web-sv-01a', 'web-sv-02a']:
+    nsx.add_vm_to_switch(logical_switch='Web-Tier-01', 
+                         datacenter='ABC Medical',
+                         vm=vm)                              

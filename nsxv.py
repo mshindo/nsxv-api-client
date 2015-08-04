@@ -236,6 +236,20 @@ class LogicalSwitch(object):
         etree.SubElement(root, 'controlPlaneMode').text = self.mode
         return etree.tostring(root)
         
+        
+class VnicDto(object):
+    """docstring for VnicDto"""
+    def __init__(self, vnic_uuid, logical_switch):
+        self.vnic_uuid = vnic_uuid
+        self.logical_switch = logical_switch
+    
+    def toxml(self):
+        """docstring for fname"""
+        root = etree.Element('com.vmware.vshield.vsm.inventory.dto.VnicDto')
+        etree.SubElement(root, 'vnicUuid').text = self.vnic_uuid
+        etree.SubElement(root, 'portgroupId').text = self.logical_switch
+        return etree.tostring(root)
+
                 
 class FirewallSection(object):
     def __init__(self, name, rules=None):
@@ -387,6 +401,13 @@ class Nsx:
         """docstring for _find_network_id"""
         return self.vc.finder('%s/network/%s' % 
                               (datacenter, network))._GetMoId()
+    
+    def _find_instance_uuid(self, datacenter, vm):
+        """docstring for _find_vm_uuid"""
+        vm = self.vc.finder('%s/vm/Discovered virtual machine/%s' % (datacenter, vm))
+        return vm.config.instanceUuid
+
+    pass
 
     # NSX Manager Object Finders (private)
                             
@@ -403,6 +424,13 @@ class Nsx:
         scopes = etree.fromstring(resp)
         pattern = "/vdnScopes/vdnScope[name='%s']/id/text()" % name
         return scopes.xpath(pattern)[0]
+    
+    def _find_logical_switch_id(self, name):
+        """docstring for _find_logical_switch_id"""
+        resp = self._api_get('/api/2.0/vdn/virtualwires')
+        virtualwires = etree.fromstring(resp)
+        pattern = "/virtualWires/dataPage/virtualWire[name='%s']/objectId/text()" % name
+        return virtualwires.xpath(pattern)[0]
 
     # IP Pools
 
@@ -484,6 +512,17 @@ class Nsx:
         logical_switch = LogicalSwitch(name, mode)
         path = '/api/2.0/vdn/scopes/%s/virtualwires' % transport_zone_id
         return self._api_post(path, logical_switch.toxml())
+        
+    def add_vm_to_switch(self, logical_switch, datacenter, vm):
+        """docstring for add_vm_to_switch"""
+        logical_switch_id = self._find_logical_switch_id(logical_switch)
+        instance_uuid = self._find_instance_uuid(datacenter, vm)
+        # TODO
+        # can't find a way to get the 'virtualdevice id'. It doesn't
+        # work as documented. So, simply assumes it's '.000' for now.
+        vnic_dto = VnicDto(instance_uuid + '.000', logical_switch_id)
+        return self._api_post('/api/2.0/vdn/virtualwires/vm/vnic',
+                              vnic_dto.toxml())
         
     # Security Groups
     
