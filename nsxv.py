@@ -126,7 +126,8 @@ class HostPrep(object):
     def toxml(self):
         """docstring for toxml"""
         resource_config = etree.Element('resourceConfig')
-        etree.SubElement(resource_config, 'resourceId').text = self.cluster_id
+        etree.SubElement(resource_config, 
+                         'resourceId').text = self.cluster_id
         root = etree.Element('nwFabricFeatureConfig')
         root.append(resource_config)
         return etree.tostring(root)
@@ -195,6 +196,7 @@ class Segment(object):
         etree.SubElement(root, 'begin').text = str(self.begin)
         etree.SubElement(root, 'end').text = str(self.end)
         return etree.tostring(root)
+
 
 class TransportZone(object):
     """docstring for TransportZone"""
@@ -521,8 +523,11 @@ class Nsx:
         # can't find a way to get the 'virtualdevice id'. It doesn't
         # work as documented. So, simply assumes it's '.000' for now.
         vnic_dto = VnicDto(instance_uuid + '.000', logical_switch_id)
-        return self._api_post('/api/2.0/vdn/virtualwires/vm/vnic',
+        resp = self._api_post('/api/2.0/vdn/virtualwires/vm/vnic',
                               vnic_dto.toxml())
+        task = etree.fromstring(resp)
+        job_id = task.xpath('//jobId/text()')[0]
+        self._wait_job(job_id)
         
     # Security Groups
     

@@ -88,4 +88,12 @@ for name in ['Transit-Network-01',
 for vm in ['web-sv-01a', 'web-sv-02a']:
     nsx.add_vm_to_switch(logical_switch='Web-Tier-01', 
                          datacenter='ABC Medical',
-                         vm=vm)                              
+                         vm=vm)
+
+nsx.add_vm_to_switch(logical_switch='App-Tier-01', 
+                         datacenter='ABC Medical',
+                         vm='app-sv-01a')
+
+nsx.add_vm_to_switch(logical_switch='DB-Tier-01', 
+                         datacenter='ABC Medical',
+                         vm='db-sv-01a')
