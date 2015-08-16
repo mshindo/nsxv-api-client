@@ -409,8 +409,6 @@ class Nsx:
         vm = self.vc.finder('%s/vm/Discovered virtual machine/%s' % (datacenter, vm))
         return vm.config.instanceUuid
 
-    pass
-
     # NSX Manager Object Finders (private)
                             
     def _find_ip_pool_id(self, name):
