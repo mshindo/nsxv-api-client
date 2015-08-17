@@ -252,6 +252,61 @@ class VnicDto(object):
         etree.SubElement(root, 'portgroupId').text = self.logical_switch
         return etree.tostring(root)
 
+
+class Edge(object):
+    """docstring for Edge"""
+    def __init__(self, name, cluster_id, datastore_id, username, password, 
+                 type, mgmt_iface, interfaces):
+        self.name = name
+        self.cluster_id = cluster_id
+        self.datastore_id = datastore_id
+        self.username = username
+        self.password = password
+        self.type = type
+        self.mgmt_iface = mgmt_iface
+        self.interfaces = interfaces
+        
+    def toxml(self):
+        """docstring for toxml"""
+        root = etree.Element('edge')
+        etree.SubElement(root, 'name').text = self.name
+        appliances = etree.Element('appliances')
+        appliance = etree.Element('appliance')
+        etree.SubElement(appliance, 'resourcePoolId').text = self.cluster_id
+        etree.SubElement(appliance, 'datastoreId').text = self.datastore_id
+        appliances.append(appliance)
+        root.append(appliances)
+        cli = etree.Element('cliSettings')
+        etree.SubElement(cli, 'userName').text = self.username
+        etree.SubElement(cli, 'password').text = self.password
+        root.append(cli)
+        if self.type == 'DLR':
+            etree.SubElement(root, 'type').text = 'distributedRouter'
+        mgmt_iface = etree.Element('mgmtInterface')
+        etree.SubElement(mgmt_iface, 'connectedToId').text = self.mgmt_iface
+        root.append(mgmt_iface)
+        
+        ifaces = etree.Element('interfaces')
+        for iface in self.interfaces:
+            interface = etree.Element('interface')
+            etree.SubElement(interface, 'name').text = iface['name']
+            addrgroups = etree.Element('addressGroups')
+            addrgroup = etree.Element('addressGroup')
+            etree.SubElement(addrgroup, 
+                             'primaryAddress').text = iface['address']
+            etree.SubElement(addrgroup, 
+                             'subnetPrefixLength').text = str(iface['prefixlen'])
+            addrgroups.append(addrgroup)
+            interface.append(addrgroups)
+            etree.SubElement(interface, 'type').text = iface['type']
+            etree.SubElement(interface, 'isConnected').text = 'true' # TODO
+            etree.SubElement(interface, 
+                             'connectedToId').text = iface['connected_to']
+            ifaces.append(interface)
+        root.append(ifaces)
+        
+        return etree.tostring(root)
+
                 
 class FirewallSection(object):
     def __init__(self, name, rules=None):
@@ -391,18 +446,15 @@ class Nsx:
 
     def _find_cluster_id(self, datacenter, cluster):
         """docstring for _find_cluster_id"""
-        return self.vc.finder('%s/host/%s' % 
-                              (datacenter, cluster))._GetMoId()
+        return self.vc.finder('%s/host/%s' % (datacenter, cluster))._GetMoId()
 
     def _find_datastore_id(self, datacenter, datastore):
         """docstring for _find_datastore_id"""
-        return self.vc.finder('%s/datastore/%s' % 
-                              (datacenter, datastore))._GetMoId()
+        return self.vc.finder('%s/datastore/%s' % (datacenter, datastore))._GetMoId()
                                 
     def _find_network_id(self, datacenter, network):
         """docstring for _find_network_id"""
-        return self.vc.finder('%s/network/%s' % 
-                              (datacenter, network))._GetMoId()
+        return self.vc.finder('%s/network/%s' % (datacenter, network))._GetMoId()
     
     def _find_instance_uuid(self, datacenter, vm):
         """docstring for _find_vm_uuid"""
@@ -526,6 +578,19 @@ class Nsx:
         task = etree.fromstring(resp)
         job_id = task.xpath('//jobId/text()')[0]
         self._wait_job(job_id)
+        
+    def create_dlr(self, name, username, password, datacenter, cluster,
+                   datastore, mgmt_iface, interfaces):
+        """docstring for create_dlr"""
+        cluster_id = self._find_cluster_id(datacenter, cluster)
+        datastore_id = self._find_datastore_id(datacenter, datastore)
+        mgmt_iface_id = self._find_network_id(datacenter, mgmt_iface)
+        for iface in interfaces:
+            # TODO: need to support VDS
+            iface['connected_to'] = self._find_logical_switch_id(iface['connected_to'])
+        edge = Edge(name, cluster_id, datastore_id, username, password,
+                    'DLR', mgmt_iface_id, interfaces)
+        return self._api_post('/api/4.0/edges/', edge.toxml())
         
     # Security Groups
     
