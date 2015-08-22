@@ -21,6 +21,21 @@ class VCenter(object):
         else:
             self.host = hostname
             self.port = 443
+
+        # python 2.7.9 (or maybe newer) causes 'certificate verify failed'
+        # exception when connect.Connect(). The following monkey patch is
+        # to get around this problem. Hopefully next version of pyvmomi
+        # will allow us to ignore this error but until that happens, let
+        # me use this monkey patch.
+        try:
+            _create_unverified_https_context = ssl._create_unverified_context
+        except AttributeError:
+            # Legacy Python that doesn't verify HTTPS certificates by default
+            pass
+        else:
+            # Handle target environment that doesn't support HTTPS verification
+            ssl._create_default_https_context = _create_unverified_https_context
+
         searcher = connect.Connect(self.host, self.port, username,
                                    password).content.searchIndex
         self.finder = searcher.FindByInventoryPath
@@ -483,7 +498,7 @@ class Nsx:
         virtualwires = etree.fromstring(resp)
         pattern = "/virtualWires/dataPage/virtualWire[name='%s']/objectId/text()" % name
         return virtualwires.xpath(pattern)[0]
-
+        
     # IP Pools
 
     def add_ip_pool(self, name, gateway, prefix_len, start, end, 
@@ -591,7 +606,7 @@ class Nsx:
         edge = Edge(name, cluster_id, datastore_id, username, password,
                     'DLR', mgmt_iface_id, interfaces)
         return self._api_post('/api/4.0/edges/', edge.toxml())
-        
+
     # Security Groups
     
     def get_security_groups(self):
