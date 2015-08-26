@@ -124,5 +124,12 @@ nsx.create_dlr(name='Distributed-Router-01',
                             'type': 'internal', 
                             'connected_to': 'DB-Tier-01',
                             'address': '172.16.30.1', 
-                            'prefixlen': 24}]
-               )                         
+                            'prefixlen': 24}])
+
+nsx.add_firewall_l3_rule(section='Default Section Layer3',
+                         name='Web Segmentation',
+                         sources=[{'type': 'Logical Switch',
+                                   'name': 'Web-Tier-01'}],
+                         destinations=[{'type': 'Logical Switch',
+                                        'name': 'Web-Tier-01'}],
+                         action='deny')

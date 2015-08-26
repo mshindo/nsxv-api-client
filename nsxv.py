@@ -1,4 +1,5 @@
 import time
+import urllib
 import requests
 from lxml import etree
 import ssl
@@ -338,18 +339,51 @@ class FirewallSection(object):
     def get_id(self, etree):
         if self.etree:
             return self.etree.xpath('/section/@id')[0]
-    
+
 
 class FirewallRule(object):
-    def __init__(self, action, name=None):
-        self.action = action
+    def __init__(self, name=None, sources=None, destinations=None, 
+                 services=None, action='allow'):
         self.name = name
+        self.sources = sources
+        self.destinations = destinations
+        self.services = services
+        self.action = action
 
     def toxml(self):
         root = etree.Element('rule')
         if self.name:
             etree.SubElement(root, 'name').text = self.name
+            
         etree.SubElement(root, 'action').text = self.action
+
+        if self.sources:
+            sources = etree.Element('sources', excluded='false')
+            for src in self.sources:
+                source = etree.Element('source')
+                etree.SubElement(source, 'value').text = src['name']
+                etree.SubElement(source, 'type').text = src['type']
+            sources.append(source)
+            root.append(sources)
+            
+        if self.destinations:
+            destinations = etree.Element('destinations', excluded='false')
+            for dst in self.destinations:
+                destination = etree.Element('destination')
+                etree.SubElement(destination, 'value').text = dst['name']
+                etree.SubElement(destination, 'type').text = dst['type']
+            destinations.append(destination)
+            root.append(destinations)
+            
+        if self.services:
+            services = etree.Element('services', excluded='false')
+            for svc in self.services:
+                service = etree.Element('service')
+                etree.SubElement(service, 'value').text = svc['name']
+                etree.SubElement(service, 'type').text = svc['type']
+            services.append(servie)
+            root.append(services)
+            
         return etree.tostring(root)
 
 
@@ -377,31 +411,33 @@ class Nsx:
             print "---"
         return resp
 
-    def _api_post(self, path, xml):
+    def _api_post(self, path, xml, headers={}):
         """docstring for api_post"""
         if self.debug:
             print "POST %s" % (self.url + path)
             print "---"
             print xml
             print "---"
-        headers = {'Content-Type': 'application/xml'}
+        hdrs = {'Content-Type': 'application/xml'}
+        hdrs.update(headers)
         resp = requests.post(self.url + path, auth=self.auth, verify=False,
-                             data=xml, headers=headers).content
+                             data=xml, headers=hdrs).content
         if self.debug:
             print resp
             print "---"
         return resp
 
-    def _api_put(self, path, xml):
+    def _api_put(self, path, xml, headers={}):
         """docstring for api_put"""
         if self.debug:
             print "PUT %s" % (self.url + path)
             print "---"
             print xml
             print "---"
-        headers = {'Content-Type': 'application/xml'}
+        hdrs = {'Content-Type': 'application/xml'}
+        hdrs.update(headers)
         resp = requests.put(self.url + path, auth=self.auth, verify=False,
-                            data=xml, headers=headers).content
+                            data=xml, headers=hdrs).content
         if self.debug:
             print resp
             print "---"
@@ -498,6 +534,32 @@ class Nsx:
         virtualwires = etree.fromstring(resp)
         pattern = "/virtualWires/dataPage/virtualWire[name='%s']/objectId/text()" % name
         return virtualwires.xpath(pattern)[0]
+        
+    def _find_firewall_l3_section_id(self, name):
+        """docstring for find_firewall_l3_section_id"""
+        resp = self._api_get('/api/4.0/firewall/globalroot-0/config/layer3sections?name=%s' % urllib.quote(name))
+        section = etree.fromstring(resp)
+        return section.xpath('/section/@id')[0]
+
+    def _find_firewall_l3_generation_no(self, name):
+        """docstring for _find_firewall_l3_generation_no"""
+        resp = self._api_get('/api/4.0/firewall/globalroot-0/config/layer3sections?name=%s' % urllib.quote(name))
+        section = etree.fromstring(resp)
+        return section.xpath('/section/@generationNumber')[0]
+        
+    # utilities
+        
+    def _lookup_obj_id(self, obj):
+        """docstring for _lookup_obj_id"""
+        obj_type = obj['type']
+        obj_name = obj['name']
+        if obj_type == 'Cluster':
+            return {'type': 'Cluster', 'name': 'TBD'}
+        elif obj_type == 'Logical Switch':
+            obj_id = self._find_logical_switch_id(obj_name)
+            return {'type': 'VirtualWire', 'name': obj_id}
+        else:
+            return None
         
     # IP Pools
 
@@ -606,6 +668,24 @@ class Nsx:
         edge = Edge(name, cluster_id, datastore_id, username, password,
                     'DLR', mgmt_iface_id, interfaces)
         return self._api_post('/api/4.0/edges/', edge.toxml())
+        
+    def add_firewall_l3_rule(self, section, name=None, sources=None, 
+                             destinations=None, services=None, 
+                             action='allow'):
+        """docstring for add_firewall_l3_rule"""
+        if sources:
+            sources = [self._lookup_obj_id(src) for src in sources]
+        if destinations:
+            destinations = [self._lookup_obj_id(dst) for dst in destinations]
+        
+        section_id = self._find_firewall_l3_section_id(section)
+
+        rule = FirewallRule(name, sources, destinations, services, action)
+        gen_no = self._find_firewall_l3_generation_no(section)
+        return self._api_post('/api/4.0/firewall/globalroot-0/config/'
+                              'layer3sections/%s/rules' % section_id,
+                              rule.toxml(), 
+                              {'If-Match': gen_no})
 
     # Security Groups
     
