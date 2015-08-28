@@ -269,16 +269,15 @@ class VnicDto(object):
         return etree.tostring(root)
 
 
-class Edge(object):
-    """docstring for Edge"""
+class Dlr(object):
+    """docstring for Dlr"""
     def __init__(self, name, cluster_id, datastore_id, username, password, 
-                 type, mgmt_iface, interfaces):
+                 mgmt_iface, interfaces):
         self.name = name
         self.cluster_id = cluster_id
         self.datastore_id = datastore_id
         self.username = username
         self.password = password
-        self.type = type
         self.mgmt_iface = mgmt_iface
         self.interfaces = interfaces
         
@@ -296,8 +295,7 @@ class Edge(object):
         etree.SubElement(cli, 'userName').text = self.username
         etree.SubElement(cli, 'password').text = self.password
         root.append(cli)
-        if self.type == 'DLR':
-            etree.SubElement(root, 'type').text = 'distributedRouter'
+        etree.SubElement(root, 'type').text = 'distributedRouter'
         mgmt_iface = etree.Element('mgmtInterface')
         etree.SubElement(mgmt_iface, 'connectedToId').text = self.mgmt_iface
         root.append(mgmt_iface)
@@ -665,9 +663,9 @@ class Nsx:
         for iface in interfaces:
             # TODO: need to support VDS
             iface['connected_to'] = self._find_logical_switch_id(iface['connected_to'])
-        edge = Edge(name, cluster_id, datastore_id, username, password,
-                    'DLR', mgmt_iface_id, interfaces)
-        return self._api_post('/api/4.0/edges/', edge.toxml())
+        dlr = Dlr(name, cluster_id, datastore_id, username, password,
+                  mgmt_iface_id, interfaces)
+        return self._api_post('/api/4.0/edges/', dlr.toxml())
         
     def add_firewall_l3_rule(self, section, name=None, sources=None, 
                              destinations=None, services=None, 
