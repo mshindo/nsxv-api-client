@@ -321,6 +321,58 @@ class Dlr(object):
         
         return etree.tostring(root)
 
+
+class Esg(object):
+    """docstring for Esg"""
+    def __init__(self, name, cluster_id, datastore_id, username, password, 
+                 interfaces):
+        self.name = name
+        self.cluster_id = cluster_id
+        self.datastore_id = datastore_id
+        self.username = username
+        self.password = password
+        self.interfaces = interfaces
+        
+    def toxml(self):
+        """docstring for toxml"""
+        root = etree.Element('edge')
+        etree.SubElement(root, 'name').text = self.name
+        appliances = etree.Element('appliances')
+        appliance = etree.Element('appliance')
+        etree.SubElement(appliance, 'resourcePoolId').text = self.cluster_id
+        etree.SubElement(appliance, 'datastoreId').text = self.datastore_id
+        appliances.append(appliance)
+        root.append(appliances)
+        cli = etree.Element('cliSettings')
+        etree.SubElement(cli, 'userName').text = self.username
+        etree.SubElement(cli, 'password').text = self.password
+        root.append(cli)
+        etree.SubElement(root, 'type').text = 'gatewayServices'
+        
+        vnics = etree.Element('vnics')
+        index = 1
+        for iface in self.interfaces:
+            vnic = etree.Element('vnic')
+            etree.SubElement(vnic, 'name').text = iface['name']
+            addrgroups = etree.Element('addressGroups')
+            addrgroup = etree.Element('addressGroup')
+            etree.SubElement(addrgroup, 
+                             'primaryAddress').text = iface['address']
+            etree.SubElement(addrgroup, 
+                             'subnetPrefixLength').text = str(iface['prefixlen'])
+            addrgroups.append(addrgroup)
+            vnic.append(addrgroups)
+            etree.SubElement(vnic, 'type').text = iface['type']
+            etree.SubElement(vnic, 'isConnected').text = 'true' # TODO
+            etree.SubElement(vnic, 'index').text = str(index)
+            index += 1
+            etree.SubElement(vnic, 
+                             'portgroupId').text = iface['connected_to']['name']
+            vnics.append(vnic)
+        root.append(vnics)
+        
+        return etree.tostring(root)
+
                 
 class FirewallSection(object):
     def __init__(self, name, rules=None):
@@ -552,7 +604,7 @@ class Nsx:
         obj_type = obj['type']
         obj_name = obj['name']
         if obj_type == 'Cluster':
-            return {'type': 'Cluster', 'name': 'TBD'}
+            return {'type': 'Cluster', 'name': 'TBD'} # TODO
         elif obj_type == 'Logical Switch':
             obj_id = self._find_logical_switch_id(obj_name)
             return {'type': 'VirtualWire', 'name': obj_id}
@@ -666,6 +718,20 @@ class Nsx:
         dlr = Dlr(name, cluster_id, datastore_id, username, password,
                   mgmt_iface_id, interfaces)
         return self._api_post('/api/4.0/edges/', dlr.toxml())
+        
+    def create_esg(self, name, username, password, datacenter, cluster,
+                   datastore, interfaces):
+        """docstring for create_esg"""
+        cluster_id = self._find_cluster_id(datacenter, cluster)
+        datastore_id = self._find_datastore_id(datacenter, datastore)
+        for iface in interfaces:
+            if iface['connected_to']['type'] == 'DPG':
+                iface['connected_to']['name'] = self._find_network_id(datacenter, iface['connected_to']['name'])
+            elif iface['connected_to']['type'] == 'Logical Switch':
+                iface['connected_to']['name'] = self._find_logical_switch_id(iface['connected_to']['name'])
+        edge = Esg(name, cluster_id, datastore_id, username, password,
+                   interfaces)
+        return self._api_post('/api/4.0/edges/', edge.toxml())
         
     def add_firewall_l3_rule(self, section, name=None, sources=None, 
                              destinations=None, services=None, 
