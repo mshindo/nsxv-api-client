@@ -1,9 +1,27 @@
-This is an NSX-v API library so that people can consume NSX-v API using Python easily. The intention
-is to free someone who writes a code from directly manipulating the XML.
+This is an NSX-v API library so that people can consume NSX-v API using Python 
+easily. The intention is to free someone who writes a API script from directly 
+manipulating the XML.
 
-Currently the number of supported API calls is pretty limited but I am going to add more as needed
-basis. It is relatively straingtforward to add API call support, your contrbibution is very much
-welcome.
+Currently the following operations are supported:
+
+ * creating IP Pool
+ * creating Controllers
+ * Host Preperation
+ * VXLAN preperation
+ * creating Segment ID
+ * creating Transport Zone
+ * creating Logical Switch
+ * attaching VMs to Logical Switch
+ * creating Distributed Logical Router
+ * creating Firewall Rule
+ * creating Ege Service Gateway
+
+Also, lab-basic.py aligns with "NSX-vSphere-61-BASIC-V1.1" lab available on 
+OneCloud. The short term goal is to fully automate the procedure described
+in this lab but it is just hal way through. 
+
+It is easy and straingtforward to add API calls, your contrbibution is very 
+much welcome.
 
 Motonori Shindo
 mshindo@vmware.com 
