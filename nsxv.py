@@ -81,7 +81,7 @@ class VCenterInfo(object):
 class IpPool(object):
     """docstring for IpPool"""
     def __init__(self, name, gateway, prefix_len, start, end,
-                 primary_dns, secondary_dns, suffix):
+                 primary_dns=None, secondary_dns=None, suffix=None):
         self.name = name
         self.gateway = gateway
         self.prefix_len = prefix_len
@@ -114,14 +114,20 @@ class IpPool(object):
 
 class Controller(object):
     """docstring for Controller"""
-    def __init__(self, cluster_id, datastore_id, connected_to_id, 
-                 ip_pool_id, password):
-        self.cluster_id = cluster_id
-        self.datastore_id = datastore_id
-        self.connected_to_id = connected_to_id
-        self.ip_pool_id = ip_pool_id
+    def __init__(self, nsx, datacenter, cluster, datastore, connected_to,
+                 ip_pool, password):
+        self.nsx = nsx
+        self.datacenter = datacenter
+        self.cluster = cluster
+        self.datastore = datastore
+        self.connected_to = connected_to
+        self.ip_pool = ip_pool
         self.password = password
-
+        self.cluster_id = nsx.find_cluster_id(datacenter, cluster) 
+        self.datastore_id = nsx.find_datastore_id(datacenter, datastore)
+        self.connected_to_id = nsx.find_network_id(datacenter, connected_to)
+        self.ip_pool_id = nsx.find_ip_pool_id(ip_pool)  
+        
     def toxml(self):
         """docstring for toxml"""
         root = etree.Element('controllerSpec')
@@ -136,8 +142,11 @@ class Controller(object):
 
 class HostPrep(object):
     """docstring for HostPrep"""
-    def __init__(self, cluster_id):
-        self.cluster_id = cluster_id
+    def __init__(self, nsx, datacenter, cluster):
+        self.nsx = nsx
+        self.datacenter = datacenter
+        self.cluster = cluster
+        self.cluster_id = nsx.find_cluster_id(datacenter, cluster)
 
     def toxml(self):
         """docstring for toxml"""
@@ -148,17 +157,23 @@ class HostPrep(object):
         root.append(resource_config)
         return etree.tostring(root)
 
+
 class VxlanPrep(object):
     """docstring for VxlanPrep"""
-    def __init__(self, cluster_id, switch_id, vlan, mtu, ip_pool_id,
+    def __init__(self, nsx, datacenter, cluster, switch, vlan, mtu, ip_pool,
                  teaming, n_vteps):
-        self.cluster_id = cluster_id
-        self.switch_id = switch_id
+        self.nsx = nsx
+        self.datacenter = datacenter
+        self.cluster = cluster
+        self.switch = switch
         self.vlan = vlan
         self.mtu = mtu
-        self.ip_pool_id = ip_pool_id
+        self.ip_pool = ip_pool
         self.teaming = teaming
         self.n_vteps = n_vteps
+        self.cluster_id = nsx.find_cluster_id(datacenter, cluster)
+        self.switch_id = nsx.find_network_id(datacenter, switch)
+        self.ip_pool_id = nsx.find_ip_pool_id(ip_pool)
 
     def toxml(self):
         """docstring for toxml"""
@@ -216,11 +231,15 @@ class Segment(object):
 
 class TransportZone(object):
     """docstring for TransportZone"""
-    def __init__(self, name, clusters_id, mode='UNICAST_MODE'):
+    def __init__(self, nsx, name, datacenter, clusters, mode='UNICAST_MODE'):
+        self.nsx = nsx
         self.name = name
-        self.clusters_id = clusters_id
+        self.datacenter = datacenter
+        self.clusters = clusters
         self.mode = mode
-    
+        self.clusters_id = [nsx.find_cluster_id(datacenter, cluster) for
+                            cluster in clusters]
+        
     def toxml(self):
         """docstring for toxml"""
         clusters = etree.Element('clusters')
@@ -240,9 +259,9 @@ class TransportZone(object):
 
 class LogicalSwitch(object):
     """docstring for LogicalSwitch"""
-    def __init__(self, name, mode):
-        super(LogicalSwitch, self).__init__()
+    def __init__(self, name, transport_zone, mode='UNICAST_MODE'):
         self.name = name
+        self.transport_zone = transport_zone
         self.mode = mode
         
     def toxml(self):
@@ -254,32 +273,45 @@ class LogicalSwitch(object):
         etree.SubElement(root, 'controlPlaneMode').text = self.mode
         return etree.tostring(root)
         
-        
-class VnicDto(object):
+
+class Vnic(object):
     """docstring for VnicDto"""
-    def __init__(self, vnic_uuid, logical_switch):
-        self.vnic_uuid = vnic_uuid
+    def __init__(self, nsx, logical_switch, datacenter, vm):
+        self.nsx = nsx
         self.logical_switch = logical_switch
-    
+        self.datacenter = datacenter
+        self.vm = vm
+        self.vnic_uuid = nsx.find_instance_uuid(datacenter, vm) + '.000'
+        self.logical_switch_id = nsx.find_logical_switch_id(logical_switch)
+ 
     def toxml(self):
         """docstring for fname"""
         root = etree.Element('com.vmware.vshield.vsm.inventory.dto.VnicDto')
         etree.SubElement(root, 'vnicUuid').text = self.vnic_uuid
-        etree.SubElement(root, 'portgroupId').text = self.logical_switch
+        etree.SubElement(root, 'portgroupId').text = self.logical_switch_id
         return etree.tostring(root)
-
+        
 
 class Dlr(object):
     """docstring for Dlr"""
-    def __init__(self, name, cluster_id, datastore_id, username, password, 
-                 mgmt_iface, interfaces):
+    def __init__(self, nsx, name, username, password, datacenter, cluster,
+                 datastore, mgmt_iface, interfaces):
+        self.nsx = nsx
         self.name = name
-        self.cluster_id = cluster_id
-        self.datastore_id = datastore_id
         self.username = username
         self.password = password
+        self.datacenter = datacenter
+        self.cluster = cluster
+        self.datastore = datastore
         self.mgmt_iface = mgmt_iface
         self.interfaces = interfaces
+        self.cluster_id = nsx.find_cluster_id(datacenter, cluster) 
+        self.datastore_id = nsx.find_datastore_id(datacenter, datastore)
+        self.mgmt_iface_id = nsx.find_network_id(datacenter, mgmt_iface)
+        self.interfaces_id = interfaces
+        for iface in interfaces:
+            # TODO: need to support VDS
+            iface['connected_to'] = nsx.find_logical_switch_id(iface['connected_to'])
         
     def toxml(self):
         """docstring for toxml"""
@@ -297,11 +329,11 @@ class Dlr(object):
         root.append(cli)
         etree.SubElement(root, 'type').text = 'distributedRouter'
         mgmt_iface = etree.Element('mgmtInterface')
-        etree.SubElement(mgmt_iface, 'connectedToId').text = self.mgmt_iface
+        etree.SubElement(mgmt_iface, 'connectedToId').text = self.mgmt_iface_id
         root.append(mgmt_iface)
         
         ifaces = etree.Element('interfaces')
-        for iface in self.interfaces:
+        for iface in self.interfaces_id:
             interface = etree.Element('interface')
             etree.SubElement(interface, 'name').text = iface['name']
             addrgroups = etree.Element('addressGroups')
@@ -324,14 +356,24 @@ class Dlr(object):
 
 class Esg(object):
     """docstring for Esg"""
-    def __init__(self, name, cluster_id, datastore_id, username, password, 
-                 interfaces):
+    def __init__(self, nsx, name, datacenter, cluster, datastore, interfaces, 
+                 username=None, password=None):
+        self.nsx = nsx
         self.name = name
-        self.cluster_id = cluster_id
-        self.datastore_id = datastore_id
         self.username = username
         self.password = password
+        self.datacenter = datacenter
+        self.cluster = cluster
+        self.datastore = datastore
         self.interfaces = interfaces
+        self.cluster_id = nsx.find_cluster_id(datacenter, cluster)
+        self.datastore_id = nsx.find_datastore_id(datacenter, datastore)
+        self.interfaces_id = interfaces
+        for iface in self.interfaces_id:
+            if iface['connected_to']['type'] == 'DPG':
+                iface['connected_to']['name'] = nsx.find_network_id(datacenter, iface['connected_to']['name'])
+            elif iface['connected_to']['type'] == 'Logical Switch':
+                iface['connected_to']['name'] = nsx.find_logical_switch_id(iface['connected_to']['name'])
         
     def toxml(self):
         """docstring for toxml"""
@@ -343,15 +385,18 @@ class Esg(object):
         etree.SubElement(appliance, 'datastoreId').text = self.datastore_id
         appliances.append(appliance)
         root.append(appliances)
-        cli = etree.Element('cliSettings')
-        etree.SubElement(cli, 'userName').text = self.username
-        etree.SubElement(cli, 'password').text = self.password
-        root.append(cli)
+        if self.username or self.password:
+            cli = etree.Element('cliSettings')
+            if self.username:
+                etree.SubElement(cli, 'userName').text = self.username
+            if self.password:
+                etree.SubElement(cli, 'password').text = self.password
+            root.append(cli)
         etree.SubElement(root, 'type').text = 'gatewayServices'
         
         vnics = etree.Element('vnics')
         index = 1
-        for iface in self.interfaces:
+        for iface in self.interfaces_id:
             vnic = etree.Element('vnic')
             etree.SubElement(vnic, 'name').text = iface['name']
             addrgroups = etree.Element('addressGroups')
@@ -371,34 +416,43 @@ class Esg(object):
             vnics.append(vnic)
         root.append(vnics)
         
-        return etree.tostring(root)
+        return etree.tostring(root)      
 
-                
-class FirewallSection(object):
-    def __init__(self, name, rules=None):
-        self.name = name
-        self.rules = rules
 
-    def toxml(self):
-        root = etree.Element('section', name=self.name)
-        if self.rules:
-            for r in self.rules:
-                root.append(etree.fromstring(r.toxml()))
-        return etree.tostring(root)
-
-    def get_id(self, etree):
-        if self.etree:
-            return self.etree.xpath('/section/@id')[0]
+# class FirewallSection(object):
+#     def __init__(self, name, rules=None):
+#         self.name = name
+#         self.rules = rules
+#
+#     def toxml(self):
+#         root = etree.Element('section', name=self.name)
+#         if self.rules:
+#             for r in self.rules:
+#                 root.append(etree.fromstring(r.toxml()))
+#         return etree.tostring(root)
+#
+#     def get_id(self, etree):
+#         if self.etree:
+#             return self.etree.xpath('/section/@id')[0]
 
 
 class FirewallRule(object):
-    def __init__(self, name=None, sources=None, destinations=None, 
-                 services=None, action='allow'):
+    def __init__(self, nsx, section, name=None, sources=None, 
+                 destinations=None, services=None, action='allow'):
+        self.nsx = nsx
+        self.section = section
         self.name = name
         self.sources = sources
         self.destinations = destinations
         self.services = services
         self.action = action
+        self.sources_id = sources
+        self.destinations_id = destinations
+        if sources:
+             self.sources_id = [nsx._lookup_obj_id(src) for src in sources]
+        if destinations:
+             self.destinations_id = [nsx._lookup_obj_id(dst) for dst 
+                                                           in destinations]
 
     def toxml(self):
         root = etree.Element('rule')
@@ -407,18 +461,18 @@ class FirewallRule(object):
             
         etree.SubElement(root, 'action').text = self.action
 
-        if self.sources:
+        if self.sources_id:
             sources = etree.Element('sources', excluded='false')
-            for src in self.sources:
+            for src in self.sources_id:
                 source = etree.Element('source')
                 etree.SubElement(source, 'value').text = src['name']
                 etree.SubElement(source, 'type').text = src['type']
             sources.append(source)
             root.append(sources)
             
-        if self.destinations:
+        if self.destinations_id:
             destinations = etree.Element('destinations', excluded='false')
-            for dst in self.destinations:
+            for dst in self.destinations_id:
                 destination = etree.Element('destination')
                 etree.SubElement(destination, 'value').text = dst['name']
                 etree.SubElement(destination, 'type').text = dst['type']
@@ -543,61 +597,61 @@ class Nsx:
         vc_info = VCenterInfo(self.vc)
         return self._api_put('/api/2.0/services/vcconfig', vc_info.toxml())
         
-    # vCenter Object Finders (private)
+    # vCenter Object Finders
 
-    def _find_cluster_id(self, datacenter, cluster):
-        """docstring for _find_cluster_id"""
+    def find_cluster_id(self, datacenter, cluster):
+        """docstring for find_cluster_id"""
         return self.vc.finder('%s/host/%s' % (datacenter, cluster))._GetMoId()
 
-    def _find_datastore_id(self, datacenter, datastore):
-        """docstring for _find_datastore_id"""
+    def find_datastore_id(self, datacenter, datastore):
+        """docstring for find_datastore_id"""
         return self.vc.finder('%s/datastore/%s' % (datacenter, datastore))._GetMoId()
                                 
-    def _find_network_id(self, datacenter, network):
-        """docstring for _find_network_id"""
+    def find_network_id(self, datacenter, network):
+        """docstring for find_network_id"""
         return self.vc.finder('%s/network/%s' % (datacenter, network))._GetMoId()
     
-    def _find_instance_uuid(self, datacenter, vm):
-        """docstring for _find_vm_uuid"""
+    def find_instance_uuid(self, datacenter, vm):
+        """docstring for find_vm_uuid"""
         vm = self.vc.finder('%s/vm/Discovered virtual machine/%s' % (datacenter, vm))
         return vm.config.instanceUuid
 
-    # NSX Manager Object Finders (private)
+    # NSX Manager Object Finders
                             
-    def _find_ip_pool_id(self, name):
-         """docstring for find_ip_pool"""
-         resp = self._api_get('/api/2.0/services/ipam/pools/scope/globalroot-0')
-         pools = etree.fromstring(resp)
-         pattern = "/ipamAddressPools/ipamAddressPool[name='%s']/objectId/text()" % name
-         return pools.xpath(pattern)[0]
+    def find_ip_pool_id(self, name):
+        """docstring for find_ip_pool"""
+        resp = self._api_get('/api/2.0/services/ipam/pools/scope/globalroot-0')
+        pools = etree.fromstring(resp)
+        pattern = "/ipamAddressPools/ipamAddressPool[name='%s']/objectId/text()" % name
+        return pools.xpath(pattern)[0]
     
-    def _find_transport_zone_id(self, name):
-        """docstring for _find_transport_zone_id"""
+    def find_transport_zone_id(self, name):
+        """docstring for find_transport_zone_id"""
         resp = self._api_get('/api/2.0/vdn/scopes')
         scopes = etree.fromstring(resp)
         pattern = "/vdnScopes/vdnScope[name='%s']/id/text()" % name
         return scopes.xpath(pattern)[0]
     
-    def _find_logical_switch_id(self, name):
-        """docstring for _find_logical_switch_id"""
+    def find_logical_switch_id(self, name):
+        """docstring for find_logical_switch_id"""
         resp = self._api_get('/api/2.0/vdn/virtualwires')
         virtualwires = etree.fromstring(resp)
         pattern = "/virtualWires/dataPage/virtualWire[name='%s']/objectId/text()" % name
         return virtualwires.xpath(pattern)[0]
         
-    def _find_firewall_l3_section_id(self, name):
+    def find_firewall_l3_section_id(self, name):
         """docstring for find_firewall_l3_section_id"""
         resp = self._api_get('/api/4.0/firewall/globalroot-0/config/layer3sections?name=%s' % urllib.quote(name))
         section = etree.fromstring(resp)
         return section.xpath('/section/@id')[0]
 
-    def _find_firewall_l3_generation_no(self, name):
-        """docstring for _find_firewall_l3_generation_no"""
+    def find_firewall_l3_generation_no(self, name):
+        """docstring for find_firewall_l3_generation_no"""
         resp = self._api_get('/api/4.0/firewall/globalroot-0/config/layer3sections?name=%s' % urllib.quote(name))
         section = etree.fromstring(resp)
         return section.xpath('/section/@generationNumber')[0]
         
-    # utilities
+    # utilities (TODO)
         
     def _lookup_obj_id(self, obj):
         """docstring for _lookup_obj_id"""
@@ -606,146 +660,86 @@ class Nsx:
         if obj_type == 'Cluster':
             return {'type': 'Cluster', 'name': 'TBD'} # TODO
         elif obj_type == 'Logical Switch':
-            obj_id = self._find_logical_switch_id(obj_name)
+            obj_id = self.find_logical_switch_id(obj_name)
             return {'type': 'VirtualWire', 'name': obj_id}
         else:
             return None
         
     # IP Pools
 
-    def add_ip_pool(self, name, gateway, prefix_len, start, end, 
-                    primary_dns=None, secondary_dns=None, suffix=None):
-        """docstring for add_ip_pool"""
+    def create_ip_pool(self, ip_pool):
+        """docstring for create_ip_pool"""
         if self.verbose:
-            print "Creating IP Pool %s ..." % name
-        pool = IpPool(name, gateway, prefix_len, start, end, 
-                      primary_dns, secondary_dns, suffix)
-        return self._api_post('/api/2.0/services/ipam/pools/scope/globalroot-0', 
-                               pool.toxml())
-        
+            print "Creating IP Pool %s ..." % ip_pool.name
+        return self._api_post('/api/2.0/services/ipam/pools/scope'
+                              '/globalroot-0', ip_pool.toxml())
+
     # Controllers
     
-    def add_controller(self, datacenter, cluster, datastore, connected_to,
-                       ip_pool, password):
-        """docstring for add_controller"""
+    def create_controller(self, controller):
+        """docstring for create_controller"""
         if self.verbose:
             print "Adding Controller ..."
-        cluster_id = self._find_cluster_id(datacenter, cluster)
-        datastore_id = self._find_datastore_id(datacenter, datastore)
-        network_id = self._find_network_id(datacenter, connected_to)
-        ip_pool_id = self._find_ip_pool_id(ip_pool)
-        
-        controller = Controller(cluster_id, datastore_id, network_id,
-                                ip_pool_id, password)
         job_id = self._api_post('/api/2.0/vdn/controller', controller.toxml())
         self._wait_job(job_id)
         
-    def add_controllers(self, datacenter, cluster, datastore, connected_to,
-                       ip_pool, password):
-        """docstring for add_controllers"""
+    def create_controllers(self, controller):
+        """docstring for create_controllers"""
         if self.verbose:
             print "Adding 3 Controllers ..."
         for i in range(0, 3):
-            self.add_controller(datacenter, cluster, datastore, connected_to,
-                                ip_pool, password)
+            self.create_controller(controller)
                                 
-    def host_prep(self, datacenter, cluster):
+    def host_prep(self, host_prep):
         """docstring for host_prep"""
         if self.verbose:
-            print "Preparing Host for Cluster %s ..." % cluster
-        cluster_id = self._find_cluster_id(datacenter, cluster)
-        host_prep = HostPrep(cluster_id)
+            print "Preparing Host for Cluster %s ..." % host_prep.cluster
         job_id = self._api_post('/api/2.0/nwfabric/configure', 
                                 host_prep.toxml())
         self._wait_job(job_id)
         
-    def vxlan_prep(self, datacenter, cluster, switch, vlan, mtu, ip_pool,
-                      teaming, n_vteps):
+    def vxlan_prep(self, vxlan_prep):
         """docstring for vxlan_prep"""
         if self.verbose:
-            print "Configuring VXLAN for Cluster %s ..." % cluster
-        cluster_id = self._find_cluster_id(datacenter, cluster)
-        switch_id = self._find_network_id(datacenter, switch)
-        ip_pool_id = self._find_ip_pool_id(ip_pool)
-        vxlan_prep = VxlanPrep(cluster_id, switch_id, vlan, mtu, ip_pool_id,
-                               teaming, n_vteps)
+            print "Configuring VXLAN for Cluster %s ..." % vxlan_prep.cluster
         job_id = self._api_post('/api/2.0/nwfabric/configure', 
                                 vxlan_prep.toxml())
         self._wait_job(job_id)
         
-    def create_segment_id(self, begin, end):
+    def create_segment_id(self, segment):
         """docstring for create_segment_id"""
-        segment = Segment(begin, end)
         return self._api_post('/api/2.0/vdn/config/segments', segment.toxml())
     
-    def create_transport_zone(self, name, datacenter, clusters):
+    def create_transport_zone(self, transport_zone):
         """docstring for create_transport_zone"""
-        clusters_id = [self._find_cluster_id(datacenter, 
-                                             cluster) for cluster in clusters]
-        transport_zone = TransportZone(name, clusters_id)
         return self._api_post('/api/2.0/vdn/scopes', transport_zone.toxml())
         
-    def create_logical_switch(self, name, transport_zone, mode='UNICAST_MODE'):
+    def create_logical_switch(self, logical_switch):
         """docstring for create_logical_switch"""
-        transport_zone_id = self._find_transport_zone_id(transport_zone)
-        logical_switch = LogicalSwitch(name, mode)
+        transport_zone_id = self.find_transport_zone_id(logical_switch.transport_zone)
         path = '/api/2.0/vdn/scopes/%s/virtualwires' % transport_zone_id
         return self._api_post(path, logical_switch.toxml())
         
-    def add_vm_to_switch(self, logical_switch, datacenter, vm):
+    def add_vm_to_switch(self, vnic):
         """docstring for add_vm_to_switch"""
-        logical_switch_id = self._find_logical_switch_id(logical_switch)
-        instance_uuid = self._find_instance_uuid(datacenter, vm)
-        # TODO
-        # can't find a way to get the 'virtualdevice id'. It doesn't
-        # work as documented. So, simply assumes it's '.000' for now.
-        vnic_dto = VnicDto(instance_uuid + '.000', logical_switch_id)
         resp = self._api_post('/api/2.0/vdn/virtualwires/vm/vnic',
-                              vnic_dto.toxml())
+                              vnic.toxml())
         task = etree.fromstring(resp)
         job_id = task.xpath('//jobId/text()')[0]
         self._wait_job(job_id)
         
-    def create_dlr(self, name, username, password, datacenter, cluster,
-                   datastore, mgmt_iface, interfaces):
+    def create_dlr(self, dlr):
         """docstring for create_dlr"""
-        cluster_id = self._find_cluster_id(datacenter, cluster)
-        datastore_id = self._find_datastore_id(datacenter, datastore)
-        mgmt_iface_id = self._find_network_id(datacenter, mgmt_iface)
-        for iface in interfaces:
-            # TODO: need to support VDS
-            iface['connected_to'] = self._find_logical_switch_id(iface['connected_to'])
-        dlr = Dlr(name, cluster_id, datastore_id, username, password,
-                  mgmt_iface_id, interfaces)
         return self._api_post('/api/4.0/edges/', dlr.toxml())
-        
-    def create_esg(self, name, username, password, datacenter, cluster,
-                   datastore, interfaces):
-        """docstring for create_esg"""
-        cluster_id = self._find_cluster_id(datacenter, cluster)
-        datastore_id = self._find_datastore_id(datacenter, datastore)
-        for iface in interfaces:
-            if iface['connected_to']['type'] == 'DPG':
-                iface['connected_to']['name'] = self._find_network_id(datacenter, iface['connected_to']['name'])
-            elif iface['connected_to']['type'] == 'Logical Switch':
-                iface['connected_to']['name'] = self._find_logical_switch_id(iface['connected_to']['name'])
-        edge = Esg(name, cluster_id, datastore_id, username, password,
-                   interfaces)
-        return self._api_post('/api/4.0/edges/', edge.toxml())
-        
-    def add_firewall_l3_rule(self, section, name=None, sources=None, 
-                             destinations=None, services=None, 
-                             action='allow'):
-        """docstring for add_firewall_l3_rule"""
-        if sources:
-            sources = [self._lookup_obj_id(src) for src in sources]
-        if destinations:
-            destinations = [self._lookup_obj_id(dst) for dst in destinations]
-        
-        section_id = self._find_firewall_l3_section_id(section)
 
-        rule = FirewallRule(name, sources, destinations, services, action)
-        gen_no = self._find_firewall_l3_generation_no(section)
+    def create_esg(self, esg):
+        """docstring for create_esg"""
+        return self._api_post('/api/4.0/edges/', esg.toxml())
+        
+    def add_firewall_l3_rule(self, rule):
+        """docstring for add_firewall_l3_rule"""
+        section_id = self.find_firewall_l3_section_id(rule.section)
+        gen_no = self.find_firewall_l3_generation_no(rule.section)
         return self._api_post('/api/4.0/firewall/globalroot-0/config/'
                               'layer3sections/%s/rules' % section_id,
                               rule.toxml(), 
