@@ -9,7 +9,7 @@ from pyVim import connect
 
 class VCenter(object):
     """docstring for Vcenter"""
-    def __init__(self, username, password, hostname, 
+    def __init__(self, username, password, hostname,
                  proxy_ipaddr=None, proxy_port=443):
         self.username = username
         self.password = password
@@ -22,7 +22,7 @@ class VCenter(object):
         else:
             self.host = hostname
             self.port = 443
-
+        
         # python 2.7.9 (or maybe newer) causes 'certificate verify failed'
         # exception when connect.Connect(). The following monkey patch is
         # to get around this problem. Hopefully next version of pyvmomi
@@ -36,11 +36,11 @@ class VCenter(object):
         else:
             # Handle target environment that doesn't support HTTPS verification
             ssl._create_default_https_context = _create_unverified_https_context
-
+        
         searcher = connect.Connect(self.host, self.port, username,
                                    password).content.searchIndex
         self.finder = searcher.FindByInventoryPath
-
+    
     def get_thumbprint(self):
         """docstring for get_thumbprint"""
         cert = ssl.get_server_certificate((self.host, self.port))
@@ -67,7 +67,7 @@ class VCenterInfo(object):
     """docstring for vCenterInfo"""
     def __init__(self, vc):
         self.vc = vc
-
+    
     def toxml(self):
         root = etree.Element('vcInfo')
         etree.SubElement(root, 'ipAddress').text = self.vc.hostname
@@ -90,7 +90,7 @@ class IpPool(object):
         self.primary_dns = primary_dns
         self.secondary_dns = secondary_dns
         self.suffix = suffix
-        
+    
     def toxml(self):
         """docstring for toxml"""
         dto = etree.Element('ipRangeDto')
@@ -114,14 +114,14 @@ class IpPool(object):
 
 class Controller(object):
     """docstring for Controller"""
-    def __init__(self, cluster_id, datastore_id, connected_to_id, 
+    def __init__(self, cluster_id, datastore_id, connected_to_id,
                  ip_pool_id, password):
         self.cluster_id = cluster_id
         self.datastore_id = datastore_id
         self.connected_to_id = connected_to_id
         self.ip_pool_id = ip_pool_id
         self.password = password
-
+    
     def toxml(self):
         """docstring for toxml"""
         root = etree.Element('controllerSpec')
@@ -138,11 +138,11 @@ class HostPrep(object):
     """docstring for HostPrep"""
     def __init__(self, cluster_id):
         self.cluster_id = cluster_id
-
+    
     def toxml(self):
         """docstring for toxml"""
         resource_config = etree.Element('resourceConfig')
-        etree.SubElement(resource_config, 
+        etree.SubElement(resource_config,
                          'resourceId').text = self.cluster_id
         root = etree.Element('nwFabricFeatureConfig')
         root.append(resource_config)
@@ -159,22 +159,22 @@ class VxlanPrep(object):
         self.ip_pool_id = ip_pool_id
         self.teaming = teaming
         self.n_vteps = n_vteps
-
+    
     def toxml(self):
         """docstring for toxml"""
         switch1 = etree.Element('switch')
         etree.SubElement(switch1, 'objectId').text = self.switch_id
-        config_spec_cluster = etree.Element('configSpec', 
+        config_spec_cluster = etree.Element('configSpec',
                                              {'class': 'clusterMappingSpec'})
         config_spec_cluster.append(switch1)
-        etree.SubElement(config_spec_cluster, 
+        etree.SubElement(config_spec_cluster,
                          'vlanId').text = str(self.vlan)
         etree.SubElement(config_spec_cluster,
                          'vmknicCount').text = str(self.n_vteps)
         etree.SubElement(config_spec_cluster,
                          'ipPoolId').text = self.ip_pool_id
         resource_config1 = etree.Element('resourceConfig')
-        etree.SubElement(resource_config1, 
+        etree.SubElement(resource_config1,
                          'resourceId').text = self.cluster_id
         resource_config1.append(config_spec_cluster)
         
@@ -187,12 +187,12 @@ class VxlanPrep(object):
         etree.SubElement(config_spec_vds,'teaming').text = self.teaming
         
         resource_config2 = etree.Element('resourceConfig')
-        etree.SubElement(resource_config2, 
+        etree.SubElement(resource_config2,
                          'resourceId').text = self.switch_id
         resource_config2.append(config_spec_vds)
         
         root = etree.Element('nwFabricFeatureConfig')
-        etree.SubElement(root, 
+        etree.SubElement(root,
                          'featureId').text = 'com.vmware.vshield.vsm.vxlan'
         root.append(resource_config1)
         root.append(resource_config2)
@@ -204,7 +204,7 @@ class Segment(object):
     def __init__(self, begin, end):
         self.begin = begin
         self.end = end
-        
+    
     def toxml(self):
         """docstring for toxml"""
         root = etree.Element('segmentRange')
@@ -230,7 +230,7 @@ class TransportZone(object):
             cluster1 = etree.Element('cluster')
             cluster1.append(cluster2)
             clusters.append(cluster1)
-            
+        
         root = etree.Element('vdnScope')
         etree.SubElement(root, 'name').text = self.name
         root.append(clusters)
@@ -244,7 +244,7 @@ class LogicalSwitch(object):
         super(LogicalSwitch, self).__init__()
         self.name = name
         self.mode = mode
-        
+    
     def toxml(self):
         """docstring for toxml"""
         root = etree.Element('virtualWireCreateSpec')
@@ -254,7 +254,7 @@ class LogicalSwitch(object):
         etree.SubElement(root, 'controlPlaneMode').text = self.mode
         return etree.tostring(root)
         
-        
+
 class VnicDto(object):
     """docstring for VnicDto"""
     def __init__(self, vnic_uuid, logical_switch):
@@ -271,7 +271,7 @@ class VnicDto(object):
 
 class Dlr(object):
     """docstring for Dlr"""
-    def __init__(self, name, cluster_id, datastore_id, username, password, 
+    def __init__(self, name, cluster_id, datastore_id, username, password,
                  mgmt_iface, interfaces):
         self.name = name
         self.cluster_id = cluster_id
@@ -280,7 +280,7 @@ class Dlr(object):
         self.password = password
         self.mgmt_iface = mgmt_iface
         self.interfaces = interfaces
-        
+    
     def toxml(self):
         """docstring for toxml"""
         root = etree.Element('edge')
@@ -306,15 +306,15 @@ class Dlr(object):
             etree.SubElement(interface, 'name').text = iface['name']
             addrgroups = etree.Element('addressGroups')
             addrgroup = etree.Element('addressGroup')
-            etree.SubElement(addrgroup, 
+            etree.SubElement(addrgroup,
                              'primaryAddress').text = iface['address']
-            etree.SubElement(addrgroup, 
+            etree.SubElement(addrgroup,
                              'subnetPrefixLength').text = str(iface['prefixlen'])
             addrgroups.append(addrgroup)
             interface.append(addrgroups)
             etree.SubElement(interface, 'type').text = iface['type']
             etree.SubElement(interface, 'isConnected').text = 'true' # TODO
-            etree.SubElement(interface, 
+            etree.SubElement(interface,
                              'connectedToId').text = iface['connected_to']
             ifaces.append(interface)
         root.append(ifaces)
@@ -324,7 +324,7 @@ class Dlr(object):
 
 class Esg(object):
     """docstring for Esg"""
-    def __init__(self, name, cluster_id, datastore_id, username, password, 
+    def __init__(self, name, cluster_id, datastore_id, username, password,
                  interfaces):
         self.name = name
         self.cluster_id = cluster_id
@@ -332,7 +332,7 @@ class Esg(object):
         self.username = username
         self.password = password
         self.interfaces = interfaces
-        
+    
     def toxml(self):
         """docstring for toxml"""
         root = etree.Element('edge')
@@ -356,9 +356,9 @@ class Esg(object):
             etree.SubElement(vnic, 'name').text = iface['name']
             addrgroups = etree.Element('addressGroups')
             addrgroup = etree.Element('addressGroup')
-            etree.SubElement(addrgroup, 
+            etree.SubElement(addrgroup,
                              'primaryAddress').text = iface['address']
-            etree.SubElement(addrgroup, 
+            etree.SubElement(addrgroup,
                              'subnetPrefixLength').text = str(iface['prefixlen'])
             addrgroups.append(addrgroup)
             vnic.append(addrgroups)
@@ -366,47 +366,47 @@ class Esg(object):
             etree.SubElement(vnic, 'isConnected').text = 'true' # TODO
             etree.SubElement(vnic, 'index').text = str(index)
             index += 1
-            etree.SubElement(vnic, 
+            etree.SubElement(vnic,
                              'portgroupId').text = iface['connected_to']['name']
             vnics.append(vnic)
         root.append(vnics)
         
         return etree.tostring(root)
-
                 
+
 class FirewallSection(object):
     def __init__(self, name, rules=None):
         self.name = name
         self.rules = rules
-
+    
     def toxml(self):
         root = etree.Element('section', name=self.name)
         if self.rules:
             for r in self.rules:
                 root.append(etree.fromstring(r.toxml()))
         return etree.tostring(root)
-
+    
     def get_id(self, etree):
         if self.etree:
             return self.etree.xpath('/section/@id')[0]
 
 
 class FirewallRule(object):
-    def __init__(self, name=None, sources=None, destinations=None, 
+    def __init__(self, name=None, sources=None, destinations=None,
                  services=None, action='allow'):
         self.name = name
         self.sources = sources
         self.destinations = destinations
         self.services = services
         self.action = action
-
+    
     def toxml(self):
         root = etree.Element('rule')
         if self.name:
             etree.SubElement(root, 'name').text = self.name
-            
+        
         etree.SubElement(root, 'action').text = self.action
-
+        
         if self.sources:
             sources = etree.Element('sources', excluded='false')
             for src in self.sources:
@@ -415,7 +415,7 @@ class FirewallRule(object):
                 etree.SubElement(source, 'type').text = src['type']
             sources.append(source)
             root.append(sources)
-            
+        
         if self.destinations:
             destinations = etree.Element('destinations', excluded='false')
             for dst in self.destinations:
@@ -424,7 +424,7 @@ class FirewallRule(object):
                 etree.SubElement(destination, 'type').text = dst['type']
             destinations.append(destination)
             root.append(destinations)
-            
+        
         if self.services:
             services = etree.Element('services', excluded='false')
             for svc in self.services:
@@ -433,7 +433,7 @@ class FirewallRule(object):
                 etree.SubElement(service, 'type').text = svc['type']
             services.append(servie)
             root.append(services)
-            
+        
         return etree.tostring(root)
 
 
@@ -443,7 +443,7 @@ class RoutingGlobalConfig(object):
         self.router_id = router_id
         self.log = log
         self.log_level = log_level
-        
+    
     def toxml(self):
         """docstring for toxml"""
         root = etree.Element('routingGlobalConfig')
@@ -454,7 +454,7 @@ class RoutingGlobalConfig(object):
             etree.SubElement(logging, 'enable').text = 'true'
             etree.SubElement(logging, 'logLevel').text = self.log_level
             root.append(logging)
-
+        
         return etree.tostring(root)
 
 
@@ -467,7 +467,7 @@ class RoutingOspf(object):
         self.forwarding_address = forwarding_address
         self.areas = areas
         self.interfaces = interfaces
-        
+    
     def toxml(self):
         """docstring for toxml"""
         print self.areas
@@ -475,9 +475,9 @@ class RoutingOspf(object):
         root = etree.Element('ospf')
         etree.SubElement(root, 'enabled').text = self.enabled
         if self.enabled == 'true':
-            etree.SubElement(root, 
+            etree.SubElement(root,
                              'protocolAddress').text = self.protocol_address
-            etree.SubElement(root, 
+            etree.SubElement(root,
                              'forwardingAddress').text = self.forwarding_address
         if self.areas:
             areas = etree.Element('ospfAreas')
@@ -486,12 +486,12 @@ class RoutingOspf(object):
                 etree.SubElement(ospf_area, 'areaId').text = str(area['area'])
                 areas.append(ospf_area)
             root.append(areas)
-                
+        
         if self.interfaces:
             interfaces = etree.Element('ospfInterfaces')
             for iface in self.interfaces:
                 interface = etree.Element('ospfInterface')
-                etree.SubElement(interface, 
+                etree.SubElement(interface,
                                  'vnic').text = iface['name'] # TODO
                 etree.SubElement(interface,
                                  'areaId').text = str(iface['area'])
@@ -501,12 +501,12 @@ class RoutingOspf(object):
                                  'deadInterval').text = str(iface['dead_interval'])
                 interfaces.append(interface)
             root.append(interfaces)
-            
+        
         return etree.tostring(root)
 
 
 class Nsx:
-    def __init__(self, vcenter, username, password, ipaddr, 
+    def __init__(self, vcenter, username, password, ipaddr,
                  port=443, verbose=True):
         self.vc = vcenter
         self.auth = (username, password)
@@ -514,7 +514,7 @@ class Nsx:
         self.verbose = verbose
         self.debug = True
         requests.packages.urllib3.disable_warnings()
-
+    
     # Rest Interfaces (private)
     
     def _api_get(self, path):
@@ -522,13 +522,13 @@ class Nsx:
         if self.debug:
             print "GET %s" % (self.url + path)
             print "---"
-        resp = requests.get(self.url + path, auth=self.auth, 
+        resp = requests.get(self.url + path, auth=self.auth,
                             verify=False).content
         if self.debug:
             print resp
             print "---"
         return resp
-
+    
     def _api_post(self, path, xml, headers={}):
         """docstring for api_post"""
         if self.debug:
@@ -544,7 +544,7 @@ class Nsx:
             print resp
             print "---"
         return resp
-
+    
     def _api_put(self, path, xml, headers={}):
         """docstring for api_put"""
         if self.debug:
@@ -560,7 +560,7 @@ class Nsx:
             print resp
             print "---"
         return resp
-
+    
     def _api_delete(self, path):
         """docstring for api_delete"""
         if self.debug:
@@ -572,7 +572,7 @@ class Nsx:
             print resp
             print "---"
         return resp
-    #   
+    #
     # NSX API calls
     #
     
@@ -585,7 +585,7 @@ class Nsx:
         resp = self._api_get('/api/2.0/services/taskservice/job/%s' % job_id)
         xml = etree.fromstring(resp)
         return xml.xpath('/jobInstances/jobInstance/status/text()')[0]
-        
+    
     def _wait_job(self, job_id, sec=600, interval=10):
         """docstring for _wait_job"""
         if job_id == '':
@@ -601,26 +601,26 @@ class Nsx:
         if self.verbose:
             print "Job %s abandoned!" % job_id
         return False
-
+    
     # vCenter
-
+    
     def register_vcenter(self):
         """docstring for register_vcenter"""
         if self.verbose:
             print "Registering vCenter ..."
         vc_info = VCenterInfo(self.vc)
         return self._api_put('/api/2.0/services/vcconfig', vc_info.toxml())
-        
+    
     # vCenter Object Finders (private)
-
+    
     def _find_cluster_id(self, datacenter, cluster):
         """docstring for _find_cluster_id"""
         return self.vc.finder('%s/host/%s' % (datacenter, cluster))._GetMoId()
-
+    
     def _find_datastore_id(self, datacenter, datastore):
         """docstring for _find_datastore_id"""
         return self.vc.finder('%s/datastore/%s' % (datacenter, datastore))._GetMoId()
-                                
+    
     def _find_network_id(self, datacenter, network):
         """docstring for _find_network_id"""
         return self.vc.finder('%s/network/%s' % (datacenter, network))._GetMoId()
@@ -629,9 +629,9 @@ class Nsx:
         """docstring for _find_vm_uuid"""
         vm = self.vc.finder('%s/vm/Discovered virtual machine/%s' % (datacenter, vm))
         return vm.config.instanceUuid
-
+    
     # NSX Manager Object Finders (private)
-                            
+    
     def _find_ip_pool_id(self, name):
          """docstring for find_ip_pool"""
          resp = self._api_get('/api/2.0/services/ipam/pools/scope/globalroot-0')
@@ -652,35 +652,35 @@ class Nsx:
         virtualwires = etree.fromstring(resp)
         pattern = "/virtualWires/dataPage/virtualWire[name='%s']/objectId/text()" % name
         return virtualwires.xpath(pattern)[0]
-        
+    
     def _find_firewall_l3_section_id(self, name):
         """docstring for find_firewall_l3_section_id"""
         resp = self._api_get('/api/4.0/firewall/globalroot-0/config/layer3sections?name=%s' % urllib.quote(name))
         section = etree.fromstring(resp)
         return section.xpath('/section/@id')[0]
-
+    
     def _find_firewall_l3_generation_no(self, name):
         """docstring for _find_firewall_l3_generation_no"""
         resp = self._api_get('/api/4.0/firewall/globalroot-0/config/layer3sections?name=%s' % urllib.quote(name))
         section = etree.fromstring(resp)
         return section.xpath('/section/@generationNumber')[0]
-        
+    
     def _find_edge_id(self, name):
         """docstring for _find_edge_id"""
         resp = self._api_get('/api/4.0/edges')
         edges = etree.fromstring(resp)
         pattern = "/pagedEdgeList/edgePage/edgeSummary[name='%s']/objectId/text()" % name
         return edges.xpath(pattern)[0]
-        
+    
     def _find_edge_vnic_id(self, edge_id, name):
         """docstring for _find_edge_vnic_id"""
         resp = self._api_get('/api/4.0/edges/%s' % edge_id)
         edges = etree.fromstring(resp)
         pattern = "/edge/interfaces/interface[name='%s']/index/text()" % name
         return edges.xpath(pattern)[0]
-        
+    
     # utilities
-        
+    
     def _lookup_obj_id(self, obj):
         """docstring for _lookup_obj_id"""
         obj_type = obj['type']
@@ -692,19 +692,19 @@ class Nsx:
             return {'type': 'VirtualWire', 'name': obj_id}
         else:
             return None
-        
+    
     # IP Pools
-
-    def add_ip_pool(self, name, gateway, prefix_len, start, end, 
+    
+    def add_ip_pool(self, name, gateway, prefix_len, start, end,
                     primary_dns=None, secondary_dns=None, suffix=None):
         """docstring for add_ip_pool"""
         if self.verbose:
             print "Creating IP Pool %s ..." % name
-        pool = IpPool(name, gateway, prefix_len, start, end, 
+        pool = IpPool(name, gateway, prefix_len, start, end,
                       primary_dns, secondary_dns, suffix)
-        return self._api_post('/api/2.0/services/ipam/pools/scope/globalroot-0', 
+        return self._api_post('/api/2.0/services/ipam/pools/scope/globalroot-0',
                                pool.toxml())
-        
+    
     # Controllers
     
     def add_controller(self, datacenter, cluster, datastore, connected_to,
@@ -721,7 +721,7 @@ class Nsx:
                                 ip_pool_id, password)
         job_id = self._api_post('/api/2.0/vdn/controller', controller.toxml())
         self._wait_job(job_id)
-        
+    
     def add_controllers(self, datacenter, cluster, datastore, connected_to,
                        ip_pool, password):
         """docstring for add_controllers"""
@@ -730,17 +730,17 @@ class Nsx:
         for i in range(0, 3):
             self.add_controller(datacenter, cluster, datastore, connected_to,
                                 ip_pool, password)
-                                
+    
     def host_prep(self, datacenter, cluster):
         """docstring for host_prep"""
         if self.verbose:
             print "Preparing Host for Cluster %s ..." % cluster
         cluster_id = self._find_cluster_id(datacenter, cluster)
         host_prep = HostPrep(cluster_id)
-        job_id = self._api_post('/api/2.0/nwfabric/configure', 
+        job_id = self._api_post('/api/2.0/nwfabric/configure',
                                 host_prep.toxml())
         self._wait_job(job_id)
-        
+    
     def vxlan_prep(self, datacenter, cluster, switch, vlan, mtu, ip_pool,
                       teaming, n_vteps):
         """docstring for vxlan_prep"""
@@ -751,10 +751,10 @@ class Nsx:
         ip_pool_id = self._find_ip_pool_id(ip_pool)
         vxlan_prep = VxlanPrep(cluster_id, switch_id, vlan, mtu, ip_pool_id,
                                teaming, n_vteps)
-        job_id = self._api_post('/api/2.0/nwfabric/configure', 
+        job_id = self._api_post('/api/2.0/nwfabric/configure',
                                 vxlan_prep.toxml())
         self._wait_job(job_id)
-        
+    
     def create_segment_id(self, begin, end):
         """docstring for create_segment_id"""
         segment = Segment(begin, end)
@@ -762,18 +762,18 @@ class Nsx:
     
     def create_transport_zone(self, name, datacenter, clusters):
         """docstring for create_transport_zone"""
-        clusters_id = [self._find_cluster_id(datacenter, 
+        clusters_id = [self._find_cluster_id(datacenter,
                                              cluster) for cluster in clusters]
         transport_zone = TransportZone(name, clusters_id)
         return self._api_post('/api/2.0/vdn/scopes', transport_zone.toxml())
-        
+    
     def create_logical_switch(self, name, transport_zone, mode='UNICAST_MODE'):
         """docstring for create_logical_switch"""
         transport_zone_id = self._find_transport_zone_id(transport_zone)
         logical_switch = LogicalSwitch(name, mode)
         path = '/api/2.0/vdn/scopes/%s/virtualwires' % transport_zone_id
         return self._api_post(path, logical_switch.toxml())
-        
+    
     def add_vm_to_switch(self, logical_switch, datacenter, vm):
         """docstring for add_vm_to_switch"""
         logical_switch_id = self._find_logical_switch_id(logical_switch)
@@ -787,7 +787,7 @@ class Nsx:
         task = etree.fromstring(resp)
         job_id = task.xpath('//jobId/text()')[0]
         self._wait_job(job_id)
-        
+    
     def create_dlr(self, name, username, password, datacenter, cluster,
                    datastore, mgmt_iface, interfaces):
         """docstring for create_dlr"""
@@ -800,7 +800,7 @@ class Nsx:
         dlr = Dlr(name, cluster_id, datastore_id, username, password,
                   mgmt_iface_id, interfaces)
         return self._api_post('/api/4.0/edges/', dlr.toxml())
-        
+    
     def create_esg(self, name, username, password, datacenter, cluster,
                    datastore, interfaces):
         """docstring for create_esg"""
@@ -814,9 +814,9 @@ class Nsx:
         edge = Esg(name, cluster_id, datastore_id, username, password,
                    interfaces)
         return self._api_post('/api/4.0/edges/', edge.toxml())
-        
-    def add_firewall_l3_rule(self, section, name=None, sources=None, 
-                             destinations=None, services=None, 
+    
+    def add_firewall_l3_rule(self, section, name=None, sources=None,
+                             destinations=None, services=None,
                              action='allow'):
         """docstring for add_firewall_l3_rule"""
         if sources:
@@ -825,22 +825,22 @@ class Nsx:
             destinations = [self._lookup_obj_id(dst) for dst in destinations]
         
         section_id = self._find_firewall_l3_section_id(section)
-
+        
         rule = FirewallRule(name, sources, destinations, services, action)
         gen_no = self._find_firewall_l3_generation_no(section)
         return self._api_post('/api/4.0/firewall/globalroot-0/config/'
                               'layer3sections/%s/rules' % section_id,
-                              rule.toxml(), 
+                              rule.toxml(),
                               {'If-Match': gen_no})
-
-    def routing_global(self, name, router_id=None, log=False, 
+    
+    def routing_global(self, name, router_id=None, log=False,
                        log_level='info'):
         """docstring for routing_global"""
         edge_id = self._find_edge_id(name)
         config = RoutingGlobalConfig(router_id, log, log_level)
         return self._api_put('/api/4.0/edges/%s/routing/config/'
                              'global' % edge_id, config.toxml())
-
+    
     def routing_ospf(self, name, enabled, protocol_address=None,
                      forwarding_address=None, areas=None, interfaces=None):
         """docstring for routing_ospf"""
@@ -853,12 +853,12 @@ class Nsx:
         if interfaces_id:
             for iface in interfaces_id:
                 iface['name'] = self._find_edge_vnic_id(edge_id, iface['name'])
-
+        
         ospf = RoutingOspf(enabled, protocol_address, forwarding_address,
                            areas, interfaces)
         return self._api_put('/api/4.0/edges/%s/routing/config/'
                              'ospf' % edge_id, ospf.toxml())
-        
+    
     # Security Groups
     
     def get_security_groups(self):

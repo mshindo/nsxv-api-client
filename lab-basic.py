@@ -78,7 +78,7 @@ nsx.create_transport_zone(name='Global-Transport-Zone',
                                     'Compute Cluster A',
                                     'Compute Cluster B'])
 
-for name in ['Transit-Network-01', 
+for name in ['Transit-Network-01',
              'Web-Tier-01',
              'App-Tier-01',
              'DB-Tier-01']:
@@ -86,15 +86,15 @@ for name in ['Transit-Network-01',
                               transport_zone='Global-Transport-Zone')
 
 for vm in ['web-sv-01a', 'web-sv-02a']:
-    nsx.add_vm_to_switch(logical_switch='Web-Tier-01', 
+    nsx.add_vm_to_switch(logical_switch='Web-Tier-01',
                          datacenter='ABC Medical',
                          vm=vm)
 
-nsx.add_vm_to_switch(logical_switch='App-Tier-01', 
+nsx.add_vm_to_switch(logical_switch='App-Tier-01',
                          datacenter='ABC Medical',
                          vm='app-sv-01a')
 
-nsx.add_vm_to_switch(logical_switch='DB-Tier-01', 
+nsx.add_vm_to_switch(logical_switch='DB-Tier-01',
                          datacenter='ABC Medical',
                          vm='db-sv-01a')
 
@@ -105,25 +105,25 @@ nsx.create_dlr(name='Distributed-Router-01',
                cluster='Management and Edge Cluster',
                datastore='ds-site-a-nfs01',
                mgmt_iface='Mgmt_Edge_VDS - VM Mgmt',
-               interfaces=[{'name': 'Transit-Uplink', 
-                            'type': 'uplink', 
+               interfaces=[{'name': 'Transit-Uplink',
+                            'type': 'uplink',
                             'connected_to': 'Transit-Network-01',
-                            'address': '192.168.10.5', 
+                            'address': '192.168.10.5',
                             'prefixlen': 29},
-                           {'name': 'Web-Tier', 
-                            'type': 'internal', 
-                            'connected_to': 'Web-Tier-01', 
-                            'address': '172.16.10.1', 
+                           {'name': 'Web-Tier',
+                            'type': 'internal',
+                            'connected_to': 'Web-Tier-01',
+                            'address': '172.16.10.1',
                             'prefixlen': 24},
-                           {'name': 'App-Tier', 
-                            'type': 'internal', 
-                            'connected_to': 'App-Tier-01', 
-                            'address': '172.16.20.1', 
+                           {'name': 'App-Tier',
+                            'type': 'internal',
+                            'connected_to': 'App-Tier-01',
+                            'address': '172.16.20.1',
                             'prefixlen': 24},
-                           {'name': 'DB-Tier', 
-                            'type': 'internal', 
+                           {'name': 'DB-Tier',
+                            'type': 'internal',
                             'connected_to': 'DB-Tier-01',
-                            'address': '172.16.30.1', 
+                            'address': '172.16.30.1',
                             'prefixlen': 24}])
 
 nsx.add_firewall_l3_rule(section='Default Section Layer3',
