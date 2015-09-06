@@ -159,3 +159,17 @@ nsx.create_esg(name='Edge-Gateway-01',
                             'address': '172.16.100.1',
                             'prefixlen': 24}]
                )
+
+nsx.routing_global(name='Distributed-Router-01',
+                   router_id='192.168.10.5',
+                   log=True)
+
+nsx.routing_ospf(name='Distributed-Router-01',
+                 enabled=True,
+                 protocol_address='192.168.10.6',
+                 forwarding_address='192.168.10.5',
+                 areas=[{'area': 10}],
+                 interfaces=[{'name': 'Transit-Uplink',
+                              'area': 10,
+                              'hello_interval': 1,
+                              'dead_interval': 4}])

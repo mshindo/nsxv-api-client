@@ -437,6 +437,74 @@ class FirewallRule(object):
         return etree.tostring(root)
 
 
+class RoutingGlobalConfig(object):
+    """docstring for RoutingGlobalConfig"""
+    def __init__(self, router_id, log, log_level):
+        self.router_id = router_id
+        self.log = log
+        self.log_level = log_level
+        
+    def toxml(self):
+        """docstring for toxml"""
+        root = etree.Element('routingGlobalConfig')
+        if self.router_id:
+            etree.SubElement(root, 'routerId').text = self.router_id
+        if self.log:
+            logging = etree.Element('logging')
+            etree.SubElement(logging, 'enable').text = 'true'
+            etree.SubElement(logging, 'logLevel').text = self.log_level
+            root.append(logging)
+
+        return etree.tostring(root)
+
+
+class RoutingOspf(object):
+    """docstring for RoutingOspf"""
+    def __init__(self, enabled, protocol_address, forwarding_address, areas,
+                 interfaces):
+        self.enabled = enabled
+        self.protocol_address = protocol_address
+        self.forwarding_address = forwarding_address
+        self.areas = areas
+        self.interfaces = interfaces
+        
+    def toxml(self):
+        """docstring for toxml"""
+        print self.areas
+        print self.interfaces
+        root = etree.Element('ospf')
+        etree.SubElement(root, 'enabled').text = self.enabled
+        if self.enabled == 'true':
+            etree.SubElement(root, 
+                             'protocolAddress').text = self.protocol_address
+            etree.SubElement(root, 
+                             'forwardingAddress').text = self.forwarding_address
+        if self.areas:
+            areas = etree.Element('ospfAreas')
+            for area in self.areas:
+                ospf_area = etree.Element('ospfArea')
+                etree.SubElement(ospf_area, 'areaId').text = str(area['area'])
+                areas.append(ospf_area)
+            root.append(areas)
+                
+        if self.interfaces:
+            interfaces = etree.Element('ospfInterfaces')
+            for iface in self.interfaces:
+                interface = etree.Element('ospfInterface')
+                etree.SubElement(interface, 
+                                 'vnic').text = iface['name'] # TODO
+                etree.SubElement(interface,
+                                 'areaId').text = str(iface['area'])
+                etree.SubElement(interface,
+                                 'helloInterval').text = str(iface['hello_interval'])
+                etree.SubElement(interface,
+                                 'deadInterval').text = str(iface['dead_interval'])
+                interfaces.append(interface)
+            root.append(interfaces)
+            
+        return etree.tostring(root)
+
+
 class Nsx:
     def __init__(self, vcenter, username, password, ipaddr, 
                  port=443, verbose=True):
@@ -597,6 +665,20 @@ class Nsx:
         section = etree.fromstring(resp)
         return section.xpath('/section/@generationNumber')[0]
         
+    def _find_edge_id(self, name):
+        """docstring for _find_edge_id"""
+        resp = self._api_get('/api/4.0/edges')
+        edges = etree.fromstring(resp)
+        pattern = "/pagedEdgeList/edgePage/edgeSummary[name='%s']/objectId/text()" % name
+        return edges.xpath(pattern)[0]
+        
+    def _find_edge_vnic_id(self, edge_id, name):
+        """docstring for _find_edge_vnic_id"""
+        resp = self._api_get('/api/4.0/edges/%s' % edge_id)
+        edges = etree.fromstring(resp)
+        pattern = "/edge/interfaces/interface[name='%s']/index/text()" % name
+        return edges.xpath(pattern)[0]
+        
     # utilities
         
     def _lookup_obj_id(self, obj):
@@ -751,6 +833,32 @@ class Nsx:
                               rule.toxml(), 
                               {'If-Match': gen_no})
 
+    def routing_global(self, name, router_id=None, log=False, 
+                       log_level='info'):
+        """docstring for routing_global"""
+        edge_id = self._find_edge_id(name)
+        config = RoutingGlobalConfig(router_id, log, log_level)
+        return self._api_put('/api/4.0/edges/%s/routing/config/'
+                             'global' % edge_id, config.toxml())
+
+    def routing_ospf(self, name, enabled, protocol_address=None,
+                     forwarding_address=None, areas=None, interfaces=None):
+        """docstring for routing_ospf"""
+        edge_id = self._find_edge_id(name)
+        if enabled:
+            enabled = 'true'
+        else:
+            enabled ='false'
+        interfaces_id = interfaces
+        if interfaces_id:
+            for iface in interfaces_id:
+                iface['name'] = self._find_edge_vnic_id(edge_id, iface['name'])
+
+        ospf = RoutingOspf(enabled, protocol_address, forwarding_address,
+                           areas, interfaces)
+        return self._api_put('/api/4.0/edges/%s/routing/config/'
+                             'ospf' % edge_id, ospf.toxml())
+        
     # Security Groups
     
     def get_security_groups(self):
