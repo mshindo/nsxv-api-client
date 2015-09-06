@@ -253,7 +253,7 @@ class LogicalSwitch(object):
         etree.SubElement(root, 'tenantId').text = 'virtual wire tenant'
         etree.SubElement(root, 'controlPlaneMode').text = self.mode
         return etree.tostring(root)
-        
+
 
 class VnicDto(object):
     """docstring for VnicDto"""
@@ -372,7 +372,7 @@ class Esg(object):
         root.append(vnics)
         
         return etree.tostring(root)
-                
+
 
 class FirewallSection(object):
     def __init__(self, name, rules=None):
@@ -439,20 +439,22 @@ class FirewallRule(object):
 
 class RoutingGlobalConfig(object):
     """docstring for RoutingGlobalConfig"""
-    def __init__(self, router_id, log, log_level):
-        self.router_id = router_id
-        self.log = log
-        self.log_level = log_level
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
     
     def toxml(self):
         """docstring for toxml"""
         root = etree.Element('routingGlobalConfig')
-        if self.router_id:
-            etree.SubElement(root, 'routerId').text = self.router_id
-        if self.log:
+        if 'router_id' in self.kwargs:
+            etree.SubElement(root, 'routerId').text = self.kwargs['router_id']
+        if 'log' in self.kwargs:
             logging = etree.Element('logging')
-            etree.SubElement(logging, 'enable').text = 'true'
-            etree.SubElement(logging, 'logLevel').text = self.log_level
+            if 'enable' in self.kwargs['log']:
+                etree.SubElement(logging,
+                                 'enable').text = self.kwargs['log']['enable']
+            if 'level' in self.kwargs['log']:
+                etree.SubElement(logging,
+                                 'logLevel').text = self.kwargs['log']['level']
             root.append(logging)
         
         return etree.tostring(root)
@@ -460,47 +462,65 @@ class RoutingGlobalConfig(object):
 
 class RoutingOspf(object):
     """docstring for RoutingOspf"""
-    def __init__(self, enabled, protocol_address, forwarding_address, areas,
-                 interfaces):
-        self.enabled = enabled
-        self.protocol_address = protocol_address
-        self.forwarding_address = forwarding_address
-        self.areas = areas
-        self.interfaces = interfaces
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
     
     def toxml(self):
         """docstring for toxml"""
-        print self.areas
-        print self.interfaces
         root = etree.Element('ospf')
-        etree.SubElement(root, 'enabled').text = self.enabled
-        if self.enabled == 'true':
+        if 'enabled' in self.kwargs:
+            etree.SubElement(root, 'enabled').text = self.kwargs['enabled']
+        
+        if 'protocol_address' in self.kwargs:
             etree.SubElement(root,
-                             'protocolAddress').text = self.protocol_address
+                 'protocolAddress').text = self.kwargs['protocol_address']
+        
+        if 'forwarding_address' in self.kwargs:
             etree.SubElement(root,
-                             'forwardingAddress').text = self.forwarding_address
-        if self.areas:
+                 'forwardingAddress').text = self.kwargs['forwarding_address']
+        
+        if 'areas' in self.kwargs:
             areas = etree.Element('ospfAreas')
-            for area in self.areas:
+            for area in self.kwargs['areas']:
                 ospf_area = etree.Element('ospfArea')
                 etree.SubElement(ospf_area, 'areaId').text = str(area['area'])
                 areas.append(ospf_area)
             root.append(areas)
         
-        if self.interfaces:
+        if 'interfaces' in self.kwargs:
             interfaces = etree.Element('ospfInterfaces')
-            for iface in self.interfaces:
+            for iface in self.kwargs['interfaces']:
                 interface = etree.Element('ospfInterface')
                 etree.SubElement(interface,
-                                 'vnic').text = iface['name'] # TODO
+                                 'vnic').text = iface['vnic']
                 etree.SubElement(interface,
                                  'areaId').text = str(iface['area'])
                 etree.SubElement(interface,
-                                 'helloInterval').text = str(iface['hello_interval'])
+                         'helloInterval').text = str(iface['hello_interval'])
                 etree.SubElement(interface,
-                                 'deadInterval').text = str(iface['dead_interval'])
+                         'deadInterval').text = str(iface['dead_interval'])
                 interfaces.append(interface)
             root.append(interfaces)
+        # TODO: the code block above and below are very similar. Needs
+        # refactoring.
+        if 'vnics' in self.kwargs:
+            interfaces = etree.Element('ospfInterfaces')
+            for iface in self.kwargs['vnics']:
+                interface = etree.Element('ospfInterface')
+                etree.SubElement(interface,
+                                 'vnic').text = iface['vnic']
+                etree.SubElement(interface,
+                                 'areaId').text = str(iface['area'])
+                etree.SubElement(interface,
+                         'helloInterval').text = str(iface['hello_interval'])
+                etree.SubElement(interface,
+                         'deadInterval').text = str(iface['dead_interval'])
+                interfaces.append(interface)
+            root.append(interfaces)
+        
+        if 'default_originate' in self.kwargs:
+            etree.SubElement(root,
+                 'defaultOriginate').text = self.kwargs['default_originate']
         
         return etree.tostring(root)
 
@@ -672,11 +692,18 @@ class Nsx:
         pattern = "/pagedEdgeList/edgePage/edgeSummary[name='%s']/objectId/text()" % name
         return edges.xpath(pattern)[0]
     
+    def _find_edge_iface_id(self, edge_id, name):
+        """docstring for _find_edge_iface_id"""
+        resp = self._api_get('/api/4.0/edges/%s' % edge_id)
+        edges = etree.fromstring(resp)
+        pattern = "/edge/interfaces/interface[name='%s']/index/text()" % name
+        return edges.xpath(pattern)[0]
+    
     def _find_edge_vnic_id(self, edge_id, name):
         """docstring for _find_edge_vnic_id"""
         resp = self._api_get('/api/4.0/edges/%s' % edge_id)
         edges = etree.fromstring(resp)
-        pattern = "/edge/interfaces/interface[name='%s']/index/text()" % name
+        pattern = "/edge/vnics/vnic[name='%s']/index/text()" % name
         return edges.xpath(pattern)[0]
     
     # utilities
@@ -833,29 +860,23 @@ class Nsx:
                               rule.toxml(),
                               {'If-Match': gen_no})
     
-    def routing_global(self, name, router_id=None, log=False,
-                       log_level='info'):
+    def routing_global(self, name, **kwargs):
         """docstring for routing_global"""
         edge_id = self._find_edge_id(name)
-        config = RoutingGlobalConfig(router_id, log, log_level)
+        config = RoutingGlobalConfig(**kwargs)
         return self._api_put('/api/4.0/edges/%s/routing/config/'
                              'global' % edge_id, config.toxml())
     
-    def routing_ospf(self, name, enabled, protocol_address=None,
-                     forwarding_address=None, areas=None, interfaces=None):
+    def routing_ospf(self, name, **kwargs):
         """docstring for routing_ospf"""
         edge_id = self._find_edge_id(name)
-        if enabled:
-            enabled = 'true'
-        else:
-            enabled ='false'
-        interfaces_id = interfaces
-        if interfaces_id:
-            for iface in interfaces_id:
-                iface['name'] = self._find_edge_vnic_id(edge_id, iface['name'])
-        
-        ospf = RoutingOspf(enabled, protocol_address, forwarding_address,
-                           areas, interfaces)
+        if 'interfaces' in kwargs:
+            for iface in kwargs['interfaces']:
+                iface['vnic'] = self._find_edge_iface_id(edge_id, iface['name'])
+        if 'vnics' in kwargs:
+            for vnic in kwargs['vnics']:
+                vnic['vnic'] = self._find_edge_vnic_id(edge_id, vnic['name'])
+        ospf = RoutingOspf(**kwargs)
         return self._api_put('/api/4.0/edges/%s/routing/config/'
                              'ospf' % edge_id, ospf.toxml())
     

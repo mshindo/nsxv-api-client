@@ -162,10 +162,10 @@ nsx.create_esg(name='Edge-Gateway-01',
 
 nsx.routing_global(name='Distributed-Router-01',
                    router_id='192.168.10.5',
-                   log=True)
+                   log='true')
 
 nsx.routing_ospf(name='Distributed-Router-01',
-                 enabled=True,
+                 enabled='true',
                  protocol_address='192.168.10.6',
                  forwarding_address='192.168.10.5',
                  areas=[{'area': 10}],
@@ -173,3 +173,17 @@ nsx.routing_ospf(name='Distributed-Router-01',
                               'area': 10,
                               'hello_interval': 1,
                               'dead_interval': 4}])
+
+nsx.routing_global(name='Edge-Gateway-01',
+                   router_id='192.168.100.3',
+                   log={'enable': 'true',
+                        'level': 'info'})
+
+nsx.routing_ospf(name='Edge-Gateway-01',
+                 enabled='true',
+                 default_originate='true',
+                 areas=[{'area': 10}],
+                 vnics=[{'name': 'Transit Internal',
+                         'area': 10,
+                         'hello_interval': 1,
+                         'dead_interval': 4}])
