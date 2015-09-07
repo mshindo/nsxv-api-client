@@ -187,3 +187,15 @@ nsx.routing_ospf(name='Edge-Gateway-01',
                          'area': 10,
                          'hello_interval': 1,
                          'dead_interval': 4}])
+
+nsx.routing_bgp(name='Edge-Gateway-01',
+                enabled='true',
+                default_originate='true',
+                local_as=65001,
+                neighbours=[{'address': '192.168.100.2',
+                             'remote_as': 65002,
+                             'holddown_timer': 3,
+                             'keepalive_timer': 1}],
+                redistribution={'enabled': 'true',
+                                'rules': [{'from': ['connected','ospf'],
+                                           'action': 'permit'}]})

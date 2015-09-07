@@ -525,6 +525,72 @@ class RoutingOspf(object):
         return etree.tostring(root)
 
 
+class RoutingBgp(object):
+    """docstring for RoutingBgp"""
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+    
+    def toxml(self):
+        root = etree.Element('bgp')
+        if 'enabled' in self.kwargs:
+            etree.SubElement(root, 'enabled').text = self.kwargs['enabled']
+        
+        if 'local_as' in self.kwargs:
+            etree.SubElement(root,
+                             'localAS').text = str(self.kwargs['local_as'])
+        
+        if 'neighbours' in self.kwargs:
+            neighbours = etree.Element('bgpNeighbours')
+            for nbr in self.kwargs['neighbours']:
+                neighbour = etree.Element('bgpNeighbour')
+                # TODO need to handle required/option element properly, but
+                # for the time being, treat the element under 'bgpNeighbour'
+                # all required.
+                etree.SubElement(neighbour,
+                     'ipAddress').text = nbr['address']
+                etree.SubElement(neighbour,
+                     'remoteAS').text = str(nbr['remote_as'])
+                etree.SubElement(neighbour,
+                     'holdDownTimer').text = str(nbr['holddown_timer'])
+                etree.SubElement(neighbour,
+                     'keepAliveTimer').text = str(nbr['keepalive_timer'])
+                neighbours.append(neighbour)
+            root.append(neighbours)
+        
+        if 'redistribution' in self.kwargs:
+            redist = etree.Element('redistribution')
+            if 'enabled' in self.kwargs['redistribution']:
+                etree.SubElement(redist,
+                                 'enabled').text = self.kwargs['enabled']
+            if 'rules' in self.kwargs['redistribution']:
+                rules = etree.Element('rules')
+                for r in self.kwargs['redistribution']['rules']:
+                    rule = etree.Element('rule')
+                    frm = etree.Element('from')
+                    for proto in r['from']:
+                        if proto == 'isis':
+                            etree.SubElement(frm, 'isis').text = 'true'
+                        elif proto == 'ospf':
+                            etree.SubElement(frm, 'ospf').text = 'true'
+                        elif proto == 'bgp':
+                            etree.SubElement(frm, 'bgp').text = 'true'
+                        elif proto == 'static':
+                            etree.SubElement(frm, 'static').text = 'true'
+                        elif proto == 'connected':
+                            etree.SubElement(frm, 'connected').text = 'true'
+                        rule.append(frm)
+                    etree.SubElement(rule, 'action').text = r['action']
+                rules.append(rule)
+                redist.append(rules)
+            root.append(redist)
+        
+        if 'default_originate' in self.kwargs:
+            etree.SubElement(root,
+                'defaultOriginate').text = self.kwargs['default_originate']
+        
+        return etree.tostring(root)
+
+
 class Nsx:
     def __init__(self, vcenter, username, password, ipaddr,
                  port=443, verbose=True):
@@ -879,6 +945,13 @@ class Nsx:
         ospf = RoutingOspf(**kwargs)
         return self._api_put('/api/4.0/edges/%s/routing/config/'
                              'ospf' % edge_id, ospf.toxml())
+    
+    def routing_bgp(self, name, **kwargs):
+        """docstring for routing_bgp"""
+        edge_id = self._find_edge_id(name)
+        bgp = RoutingBgp(**kwargs)
+        return self._api_put('/api/4.0/edges/%s/routing/config/'
+                             'bgp' % edge_id, bgp.toxml())
     
     # Security Groups
     
