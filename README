@@ -15,7 +15,9 @@ Currently the following operations are supported:
  * creating Distributed Logical Router
  * creating Firewall Rule
  * creating Ege Service Gateway
-
+ * OSPF routing configuration
+ * BGP routing configuration
+ 
 Also, lab-basic.py aligns with "NSX-vSphere-61-BASIC-V1.1" lab available on 
 OneCloud. The short term goal is to fully automate the procedure described
 in this lab but it is just hal way through. 
