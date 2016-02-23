@@ -1,6 +1,11 @@
+Python binding for NSX-v API
+============================
+
+by Motonori Shindo <motonori@shin.do> (2012 - 2016)
+
 This is an NSX-v API library so that people can consume NSX-v API using Python 
-easily. The intention is to free someone who writes a API script from directly 
-manipulating the XML.
+easily. This library alleviates the pain of manipulating XML parameters
+directly.
 
 Currently the following operations are supported:
 
@@ -18,13 +23,6 @@ Currently the following operations are supported:
  * OSPF routing configuration
  * BGP routing configuration
  
-Also, lab-basic.py aligns with "NSX-vSphere-61-BASIC-V1.1" lab available on 
-OneCloud. The short term goal is to fully automate the procedure described
-in this lab but it is just half way through. 
+Please see lab-basic.py as an example that uses this binding. This example
+basically aligns with the NSX Hands On Lab available from VMware.
 
-It is easy and straingtforward to add API calls, your contrbibution is very 
-much welcome.
-
-Motonori Shindo
-mshindo@vmware.com 
-@motonori_shindo
