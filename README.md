@@ -32,5 +32,6 @@ basically aligns with the NSX Hands On Lab available from VMware.
 License
 -------
 
+Apache License, version 2.0
 
 
