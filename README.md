@@ -1,7 +1,7 @@
 Python binding for NSX-v API
 ============================
 
-by Motonori Shindo <motonori@shin.do> (2012 - 2020)
+by Motonori Shindo <motonori@shin.do> (2012 - 2021)
 
 Introduction
 ------------
