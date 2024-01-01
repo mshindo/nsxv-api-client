@@ -1,14 +1,14 @@
-Python binding for NSX-v API
-============================
+Python binding for NSX-v API (deprecated)
+=========================================
 
-by Motonori Shindo <motonori@shin.do> (2012 - 2023)
+by Motonori Shindo <motonori@shin.do> (2012 - 2024)
+
+This project is no longer maintained, and hence archived. Please consider using an alternative such as [nsxramlclient](https://github.com/vmware-archive/nsxramlclient).
 
 Introduction
 ------------
 
-This is an NSX-v API library so that people can consume NSX-v API using Python
-easily. This library alleviates the pain of manipulating XML parameters
-directly.
+This is an NSX-v API library so that people can consume NSX-v API using Python easily. This library alleviates the pain of manipulating XML parameters directly.
 
 Currently the following operations are supported:
 
@@ -26,8 +26,7 @@ Currently the following operations are supported:
  * OSPF routing configuration
  * BGP routing configuration
 
-Please see lab-basic.py as an example that uses this binding. This example
-basically aligns with the NSX Hands On Lab available from VMware.
+Please see lab-basic.py as an example that uses this binding. This example basically aligns with the NSX Hands On Lab available from VMware.
 
 License
 -------
